@@ -1,0 +1,323 @@
+{
+  "version": 2,
+  "source": "Photo-informed campus exterior additions; separate from the 29 approved originals",
+  "coordinateContract": "glTF Y up, +Z front, estimated metres; main-footprint anchor XZ=(0,0), base Y=0. Roof, entry and facade overhangs may make full bounds asymmetric.",
+  "models": [
+    {
+      "id": "oesol",
+      "name": "외솔관",
+      "code": "524",
+      "url": "oesol/model-19f390ba688b6d0519bd18001a00a4ba4719db13ddd57f35d341279d37d9432a.gltf",
+      "confidence": "photo-based, estimated hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "modelSha256": "99773bce52a1f1b4786c6c55d812f84c6e07f07e449eb51d08413b8004ac3d4b",
+      "geometrySha256": "a113dc21738bca69bac36ce5b26c5d85fd8cfa23c6c0d1a5bd1089de6b934f69",
+      "geometryBytes": 976544,
+      "jsonBytes": 16733,
+      "meshCount": 9,
+      "triangleCount": 15120,
+      "estimatedDimensions": {
+        "width": 69.7319754858,
+        "depth": 18.4099395173,
+        "mainRoof": 27.4,
+        "maximumHeight": 31.4
+      }
+    },
+    {
+      "id": "widang",
+      "name": "위당관",
+      "code": "527",
+      "url": "widang/model-1283e43b6fbdf576ff90be5ec5bc3c94f69bb4a7d7da0c67385730839499c9ba.gltf",
+      "confidence": "photo-based, estimated hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "modelSha256": "6fa9e648e15d1a55fed41e13427177d84f3f25b57d0d39c3d47389ff14b8c8f7",
+      "geometrySha256": "72f35591acfc01ddd4a0baf13fef84d4d5c20af1822c882661c773e1a3015bf9",
+      "geometryBytes": 1238748,
+      "jsonBytes": 13128,
+      "meshCount": 7,
+      "triangleCount": 18543,
+      "estimatedDimensions": {
+        "width": 61.34346,
+        "depth": 42.598,
+        "mainCornice": 22,
+        "gableHeight": 27.9
+      }
+    },
+    {
+      "id": "daewooAnnex",
+      "name": "대우관 별관",
+      "code": "514",
+      "url": "daewooAnnex/model-a7e9472a43ae6c7fc8b98acfad44c855cf0c52816135b841742a33c21cc3324f.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 43.36539953168153,
+        "depth": 15.578335393738996,
+        "height": 20.3
+      },
+      "modelSha256": "d5f690b976397463decb29518c2c1b111ae7247d53ec3c6a713f6c17feef2dcd",
+      "jsonBytes": 13570,
+      "geometryBytes": 575232,
+      "meshCount": 7,
+      "triangleCount": 8928,
+      "geometrySha256": "4431b20ea97b7aa988a62b6f6fbd3c920cecd759655bcfe3ab9d2fdee13c8a03"
+    },
+    {
+      "id": "billingsley",
+      "name": "빌링슬리관",
+      "code": "512",
+      "url": "billingsley/model-47ecd502094d1a89a5941b8f5792c79d214d298f4f3357b51d68f5fea6280217.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 45.12171944809546,
+        "depth": 19.214304225884632,
+        "height": 12
+      },
+      "modelSha256": "4828e89a73278b1c1a3dfbf9f1a5c2826892cf1c25b2c2f7638a097c3bb99731",
+      "jsonBytes": 13602,
+      "geometryBytes": 392284,
+      "meshCount": 7,
+      "triangleCount": 6138,
+      "geometrySha256": "61d70e78bcaead2a6393098f86ec784663521e30a6a108565d572f05bb30b7fb"
+    },
+    {
+      "id": "scienceCenter",
+      "name": "과학원",
+      "code": "323",
+      "url": "scienceCenter/model-dc1cbd3c860af45fa021a4415223f57d9ce232942b42842ffa6ceba51dd3d032.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 111.70680134219221,
+        "depth": 45.860802794502945,
+        "height": 18
+      },
+      "modelSha256": "83fe16d649d30e42b37afb44ecd009e96cb643989ad7fa31ee5a919881f8d131",
+      "jsonBytes": 10091,
+      "geometryBytes": 1195728,
+      "meshCount": 5,
+      "triangleCount": 17432,
+      "geometrySha256": "1d7e3ea51b75d9529bb7ac242a4bc131683975a03283e15c35edcc9c0de2c7ed"
+    },
+    {
+      "id": "yueokgyeom",
+      "name": "유억겸기념관",
+      "code": "507",
+      "url": "yueokgyeom/model-e58be15558c1072207252a7ae4105ea551debeee6ca4b47bcbbdcda1210f5b80.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 36.02948600228265,
+        "depth": 17.886413840482504,
+        "height": 14.4
+      },
+      "modelSha256": "ee3878db2c12751ac31e48712de5071bd43850a297e42e5707296b6c26c86589",
+      "jsonBytes": 17187,
+      "geometryBytes": 707160,
+      "meshCount": 9,
+      "triangleCount": 10628,
+      "geometrySha256": "d1a4dfd4ed99fb1955958a0dbe3063477c20615a97f638e61d970bff109652e4"
+    },
+    {
+      "id": "medicine",
+      "name": "연세대학교 의과대학 본관",
+      "code": "002",
+      "url": "medicine/model-e2425b62a2bb5f0d86dc0060ec4c1cc20c9cfd75730ff90c7000a246406f30d3.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 129.40674612843287,
+        "depth": 22.803882968373443,
+        "height": 18
+      },
+      "modelSha256": "0805084e147fe895e856575cad1850719c38a05dcb8a8aadd1a9e74be3d68179",
+      "jsonBytes": 13535,
+      "geometryBytes": 1151432,
+      "meshCount": 7,
+      "triangleCount": 17612,
+      "geometrySha256": "389d79f98d4d7769d4ff727715919fa6ad280195e419bac6aae6bad143f1f4e7"
+    },
+    {
+      "id": "nursing",
+      "name": "간호대학",
+      "code": "014",
+      "url": "nursing/model-fca8561425599bdd7bc34d1d993a7e843e2889c42c563c99189e1b0790c5121d.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 44.687692646246276,
+        "depth": 29.455547538252773,
+        "height": 27.6
+      },
+      "modelSha256": "7ec731289457d55b5fbf290725ba57f44f6d20534ab2d624798ae0f16d588571",
+      "jsonBytes": 11742,
+      "geometryBytes": 927780,
+      "meshCount": 6,
+      "triangleCount": 14214,
+      "geometrySha256": "933d9fa182244bb6f475dbcd4b03765856c091cd4a735c533ddcb859bc0c03b7"
+    },
+    {
+      "id": "dentistry",
+      "name": "치과대학",
+      "code": "012",
+      "url": "dentistry/model-c73d0504ac11356fe4d98f33a4549cc53d8d0e3b79b653965b4b2294b68d4a8b.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 52.937532287218175,
+        "depth": 26.138575034688813,
+        "height": 26.8
+      },
+      "modelSha256": "316cbce880b15b2f18da33e01b1f981d98cec5abdf0142c1a9648059d69b2ea7",
+      "jsonBytes": 14648,
+      "geometryBytes": 1304292,
+      "meshCount": 8,
+      "triangleCount": 20726,
+      "geometrySha256": "08e558ff6211772d7a9a6a9e7f1bf919f6b8421d73f5037488e9218d90f5a96d"
+    },
+    {
+      "id": "millennium",
+      "name": "새천년관",
+      "code": "606",
+      "url": "millennium/model-5ab74be2776f1e6772f9be3f756281e77a063ea9aa43952a6e7ff403f8ab75c6.gltf",
+      "confidence": "photo-informed exterior; estimated heights and hidden sides",
+      "modelAnchor": {
+        "x": 0,
+        "z": 0
+      },
+      "estimatedDimensions": {
+        "width": 91.6100587202605,
+        "depth": 48.12450027374035,
+        "height": 27.6
+      },
+      "modelSha256": "050f4e0511cafc084c586bb584c3be373aea7b1498962d1c094d8e349df9914e",
+      "jsonBytes": 16855,
+      "geometryBytes": 2018972,
+      "meshCount": 9,
+      "triangleCount": 30783,
+      "geometrySha256": "37216d7d42665bcc7707b700fb7d52a9a69351e4cbae820163b685a7ac0fd6c9"
+    }
+  ],
+  "textures": [
+    {
+      "file": "oesol/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "widang/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/daewooAnnex/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/billingsley/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/scienceCenter/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/yueokgyeom/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/medicine/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/nursing/stone.png",
+      "bytes": 369791,
+      "sha256": "3a1941da8481d52fce06f6447fe9025c01c70dd56538dac6634291a3cf02b418",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/dentistry/stone.png",
+      "bytes": 313138,
+      "sha256": "14360c60a100b3b81d56876926d0b66c22dceb635a3edaa52eaf2864ffca0653",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "../campus-expansion/millennium/stone.png",
+      "bytes": 238576,
+      "sha256": "ed74e21cfa1775ad391d938e04909355a7e2d22bba7522fd19c35345f2f37e14",
+      "mimeType": "image/png",
+      "width": 512,
+      "height": 512
+    }
+  ],
+  "totals": {
+    "models": 10,
+    "meshes": 74,
+    "triangles": 160124,
+    "binaryBytes": 10488172,
+    "jsonBytes": 141091,
+    "textureBytes": 3510042,
+    "payloadBytes": 14139305,
+    "manifestBytes": 10158,
+    "gameBytes": 14149463
+  },
+  "packed": "Shared textures by content hash (WebP: scripts/lib/texture-webp.mjs rule, PNG fallback), meshopt EXT_meshopt_compression without quantization or reordering, content-hashed glTF names (scripts/pack-campus-models.mjs)"
+}

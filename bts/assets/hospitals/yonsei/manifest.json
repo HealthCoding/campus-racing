@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "source": "pilot/yonsei-hospitals (5 protected hospital models, metallic 0, no signage), packed losslessly by scripts/pack-yonsei-hospitals.mjs",
+  "models": [
+    {
+      "id": "cancer-hospital",
+      "name": "연세암병원",
+      "url": "cancer-hospital/model-04c427a708e0ca2b5a5c110da541b1101db437f396780dc7acb32c59ad7265ca.gltf",
+      "triangles": 6186
+    },
+    {
+      "id": "severance-main",
+      "name": "세브란스병원 본관",
+      "url": "severance-main/model-091e3a6fa62f889f07ea58fe0f8b754578abba4a65f99fdda39acdee8d048b12.gltf",
+      "triangles": 5061
+    },
+    {
+      "id": "rehabilitation-hospital",
+      "name": "재활병원",
+      "url": "rehabilitation-hospital/model-cf3c21f3421ab050d23a7920d44e37f37c310713b4bc5242378d070a1322b135.gltf",
+      "triangles": 5868
+    },
+    {
+      "id": "cardiovascular-hospital",
+      "name": "심장혈관병원",
+      "url": "cardiovascular-hospital/model-a436671a90d236f8d500e4208fb08cb46ce581fa3b35a8ff91ed56d5199a670d.gltf",
+      "triangles": 6717
+    },
+    {
+      "id": "dental-hospital",
+      "name": "치과대학병원",
+      "url": "dental-hospital/model-9880b6e401c842eeb06d78bc2eec20f3c2477f09a7c3b1bf04f02881839a6794.gltf",
+      "triangles": 4302
+    }
+  ]
+}

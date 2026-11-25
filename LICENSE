@@ -1,0 +1,115 @@
+Campus Racing (캠퍼스 레이싱)
+© 2026 HealthCoding
+
+──────────────────────────────── 한국어
+
+출처를 밝히면 누구나 비상업적으로 이 게임을 가져다 쓰고, 고치고, 다시 올릴 수 있습니다.
+자기 학교 판을 만들어도 됩니다. 부분마다 따르는 라이선스는 아래와 같습니다.
+
+1. 코드
+HealthCoding 이 쓴 코드는 PolyForm Noncommercial License 1.0.0 을 따릅니다.
+https://polyformproject.org/licenses/noncommercial/1.0.0
+Required Notice: Copyright © 2026 HealthCoding (https://github.com/HealthCoding)
+
+2. 3D · 그림 · 소리 · 음악
+HealthCoding 이 직접 만든 3D 모델 · 그림 · 소리 · 음악(차량 · 독수리상 모델, 아이콘 · 공유 그림,
+게임이 합성하는 소리와 배경음악 '네온 질주')은 Creative Commons BY-NC 4.0 을 따릅니다.
+https://creativecommons.org/licenses/by-nc/4.0/
+
+3. 지도 좌표 — ODbL 1.0
+캠퍼스의 건물 · 길 · 영역과 코스의 중심선 · 이동표는 OpenStreetMap 자료로 만들었습니다.
+아래 파일에 든, 지도에서 온 좌표 자료 부분은 Open Database License(ODbL) 1.0 을 따릅니다.
+같은 파일 안의 코드는 1 을 따릅니다. 파일은 게임 주소 아래 같은 경로에서 받을 수 있습니다.
+- src/track/course-b.js · src/track/course-d.js (코스 중심선 · 폭 · 경계)
+- src/track/course-b.moves.js · src/track/course-d.moves.js (길가 물건 자리)
+- src/track/course-d.branch.js (갈래 길 중심선 · 폭)
+- src/race/terrain-data.js (주행 지형에 쓰는 건물 자리)
+- bts/src/campus-space.js · bts/src/campus-east-data.js · bts/src/campus-expansion-data.js ·
+  bts/src/campus-humanities-data.js · bts/src/campuses/yonsei/hospitals.js (건물 자리 · 윤곽)
+- bts/src/campus-environment-data.js · bts/src/campus-expansion-environment.js ·
+  bts/src/campus-fountains.js (길 · 영역 · 분수 윤곽)
+지도 자료 © OpenStreetMap contributors — https://www.openstreetmap.org/copyright
+ODbL 1.0 — https://opendatacommons.org/licenses/odbl/1-0/
+
+4. Beat the School 자료
+bts/ 의 연세대 캠퍼스 자료(3D 건물 · 병원 · 바닥 · 지형과 캠퍼스 코드)는 같은 만든 이의 게임
+Beat the School 에서 가져왔고, Beat the School 의 이용 조건을 따릅니다(이 글과 같은 비상업 짜임).
+그 안의 지도 좌표 부분은 3 을, bts/vendor/ 는 5 를 따릅니다.
+
+5. 제3자 부품
+three.js 와 애드온(three.js 코어 안의 Mapbox Earcut 이식 포함), meshoptimizer, 글꼴 Saira 등
+제3자 부품은 각자의 라이선스를 따릅니다. 목록과 저작권 표시는 NOTICE 에 있습니다.
+이 글은 그 라이선스들이 주는 권리를 줄이지 않습니다.
+
+6. 더 허락하는 것
+게임을 하는 화면 · 영상 · 방송 · 후기는 광고 · 후원 등으로 수익이 나도 자유롭게 올릴 수 있습니다.
+
+7. 출처 표시
+가져다 쓰거나 고친 판에는 'Campus Racing © 2026 HealthCoding' 과
+원본 주소(https://campus-racing.vercel.app 또는 https://github.com/HealthCoding/campus-racing)를 적습니다.
+고친 판이면 고쳤다는 것도 적습니다. 원작자가 인정한 공식판처럼 보이게 하면 안 됩니다.
+
+8. 상업적 이용
+판매 · 광고 · 유료 서비스 등 상업적 이용은 허락이 필요합니다(6 은 빼고).
+문의: healthcoding15@gmail.com
+
+──────────────────────────────── English
+
+Anyone may use, change and republish this game for non-commercial purposes, as long as
+they credit the source. You may also make a version for your own school. Each part is
+licensed as follows.
+
+1. Code
+The code HealthCoding wrote is licensed under the PolyForm Noncommercial License 1.0.0.
+https://polyformproject.org/licenses/noncommercial/1.0.0
+Required Notice: Copyright © 2026 HealthCoding (https://github.com/HealthCoding)
+
+2. Art, sound and music
+The 3D models, images, sounds and music that HealthCoding made itself (the vehicle and
+eagle statue models, the icons and share image, and the sounds and the background track
+"네온 질주" that the game synthesises) are licensed under Creative Commons BY-NC 4.0.
+https://creativecommons.org/licenses/by-nc/4.0/
+
+3. Map data — ODbL 1.0
+The campus buildings, paths and areas and the course centrelines and move tables were
+made from OpenStreetMap data. The map-derived coordinate data in the files below is
+licensed under the Open Database License (ODbL) 1.0. The code in the same files falls
+under 1. The files can be downloaded at the same paths under the game's address.
+- src/track/course-b.js, src/track/course-d.js (course centrelines, widths, edges)
+- src/track/course-b.moves.js, src/track/course-d.moves.js (roadside object positions)
+- src/track/course-d.branch.js (branch road centreline and widths)
+- src/race/terrain-data.js (building positions used by the driving terrain)
+- bts/src/campus-space.js, bts/src/campus-east-data.js, bts/src/campus-expansion-data.js,
+  bts/src/campus-humanities-data.js, bts/src/campuses/yonsei/hospitals.js
+  (building positions and footprints)
+- bts/src/campus-environment-data.js, bts/src/campus-expansion-environment.js,
+  bts/src/campus-fountains.js (paths, areas and fountain outlines)
+Map data © OpenStreetMap contributors — https://www.openstreetmap.org/copyright
+ODbL 1.0 — https://opendatacommons.org/licenses/odbl/1-0/
+
+4. Beat the School
+The Yonsei campus material in bts/ (3D buildings, hospitals, ground, terrain and campus
+code) comes from Beat the School, another game by the same maker, and follows the Beat
+the School terms (the same non-commercial structure as this one). Map coordinates in it
+fall under 3, and bts/vendor/ falls under 5.
+
+5. Third-party parts
+three.js and its add-ons (including the Mapbox Earcut port inside the three.js core),
+meshoptimizer, the Saira font and other third-party components are governed by their
+own licenses. See NOTICE for the list and notices. Nothing here limits the rights those
+licenses give you.
+
+6. Extra permission
+You may post screenshots, videos, streams and reviews of your play freely, including
+ones that earn money from ads, sponsorships or donations.
+
+7. Credit
+Anything you reuse or change must show "Campus Racing © 2026 HealthCoding" and the
+original address (https://campus-racing.vercel.app or
+https://github.com/HealthCoding/campus-racing). If you changed it, say so. Do not make
+it look like an official version endorsed by the original author.
+
+8. Commercial use
+Commercial use — selling, advertising, paid services and the like — needs permission
+(except 6).
+Contact: healthcoding15@gmail.com
