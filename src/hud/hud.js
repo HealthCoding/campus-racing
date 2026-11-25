@@ -61,6 +61,8 @@ const CREDIT_OSM = '©&nbsp;2026&nbsp;<button type="button" class="hud-credit-op
 //   주소는 './' 없이 — 판의 링크는 문서(index.html) 자리로 풀리지만, 묶음 도구의 참조 검사는 './' 로 시작하는 글을 이 파일(src/hud/) 자리로 풀기 때문.
 export const CREDIT_MAIL = 'healthcoding15@gmail.com';
 export const CREDIT_FULL = 'license.html';
+// 공개 저장소(2026-11-26 사용자 "넣자" — 게임에서 코드로 가는 길이 이용 조건 페이지 안쪽뿐이었다). 가져다 자기 학교 버전을 만들 사람이 여기로 온다.
+export const CREDIT_CODE = 'https://github.com/HealthCoding/campus-racing';
 const ODBL = 'https://opendatacommons.org/licenses/odbl/1-0/';
 // 판의 출처 적는 법에 보이는 원본 주소(공식 주소는 src/shared/official.js 한 곳에만 — 검증/official-url.test.mjs)
 const SITE = OFFICIAL_URL.replace(/^https?:\/\//, '');
@@ -81,6 +83,7 @@ const CREDITS = '<div class="hud-cr-panel" tabindex="-1"><div class="hud-cr-head
   + '<li><span>글꼴</span><div>Saira · SIL OFL 1.1</div></li>'
   + '<li><span>소리 · 배경음악</span><div>게임이 직접 합성</div></li></ul></section>'
   + '<p class="hud-cr-foot"><a class="hud-cr-full" href="' + CREDIT_FULL + '" target="_blank" rel="noopener">전체 이용 조건 · 출처</a>'
+  + '<a class="hud-cr-code" href="' + CREDIT_CODE + '" target="_blank" rel="noopener">코드 (GitHub)</a>'
   + '<span class="hud-cr-mail"><a href="mailto:' + CREDIT_MAIL + '">이용 허락 문의 · 제보</a><em>' + CREDIT_MAIL + '</em></span></p></div></div>';
 const TITLE = '<h1 class="hud-mark" aria-label="Campus Racing"><span>CAMPUS</span><span>RACING</span></h1><div class="hud-mark-kerb">' + '<i></i>'.repeat(9) + '</div><p class="hud-mark-stage">YONSEI · SINCHON</p>';
 const LAMPS = '<i></i>'.repeat(5);

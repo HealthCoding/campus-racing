@@ -2,7 +2,7 @@
 // 2026-11-24 사용자가 고른 안: 결과 = 위쪽 다섯 + 내 앞뒤(표) · 시작 화면 = '설정' 옆 '랭킹' 단추 · 단과대 = 닉네임 옆 작은 글자 + '단과대'로 걸러 보기.
 // 화면 넷: 타임어택 결과의 순위(result) · 랭킹 판(board) · 시작 화면의 '랭킹' 단추(startLink) · 닉네임 · 단과대 정하기(entry · settingsRow).
 // 모양은 hud.css 끝의 '랭킹' 절, 클래스는 전부 .rk-* 라 부르지 않으면 아무것도 안 바뀐다.
-// 키: 열린 판(맨 위 하나)이 키를 받고 다른 처리기(시작 화면의 Enter = 출발 · 주행 키)로 넘기지 않는다. Esc = 닫기 · 나중에, Tab = 판 안에서만 돈다.
+// 키: 열린 판(맨 위 하나)이 키를 받고 다른 처리기(시작 화면의 Enter = 출발 · 주행 키)로 넘기지 않는다. Esc = 닫기 · 나중에(단과대 목록이 열려 있으면 목록만 닫는다), Tab = 판 안에서만 돈다.
 import { lapText, lapLines, SHARE_BUTTON, shareMoment, openShare, shareUpdate, shareClose, shareOpen } from './hud.js';
 
 const el = (tag, cls, html = '') => { const node = document.createElement(tag); if (cls) node.className = cls; if (html) node.innerHTML = html; return node; };
@@ -29,7 +29,9 @@ const sub = (row, showTag, showCollege) => {
 export function attachRanking(root) {
   // ---- 키: 열린 판을 쌓아 두고 맨 위의 것만 받는다(결과 위에 랭킹 판, 그 위에 닉네임 판이 열릴 수 있다)
   const layers = [];
-  const focusables = node => [...node.querySelectorAll('button:not([disabled]):not([tabindex="-1"]), input, [tabindex="0"]')].filter(e => e.getClientRects().length && !e.closest('[hidden]'));
+  const focusables = node => [...node.querySelectorAll('button:not([disabled]):not([tabindex="-1"]), input, select:not([disabled]), [tabindex="0"]')].filter(e => e.getClientRects().length && !e.closest('[hidden]'));
+  // 단과대 목록이 지금 열려 있는지(운영체제의 목록은 키가 페이지로 오지 않지만, 페이지 안에 그리는 브라우저도 있다 — :open 을 모르는 브라우저는 false)
+  const picking = node => { try { return node?.tagName === 'SELECT' && node.matches(':open'); } catch { return false; } };
   function cycle(event, node) {
     const list = focusables(node); if (!list.length) return;
     const at = list.indexOf(document.activeElement), step = event.shiftKey ? -1 : 1;
@@ -44,6 +46,7 @@ export function attachRanking(root) {
     // 한글을 조합하는 중의 Enter · 화살표는 입력기의 것
     if (event.isComposing || event.keyCode === 229) return;
     const code = event.code || event.key;
+    if (picking(document.activeElement)) return;   // 열린 목록의 키(↑ ↓ · Enter · Esc = 목록만 닫기)는 브라우저의 것 — 판은 그대로
     if (code === 'Tab') { event.preventDefault(); cycle(event, top.node); return; }
     if (code === 'Escape') { event.preventDefault(); if (!event.repeat) top.onEscape(); return; }
     top.onKey?.(event, code);
@@ -54,11 +57,13 @@ export function attachRanking(root) {
   // 단추에 초점이 있을 때 Enter · Space 는 그 단추다(기본 동작으로 눌린다 — 여기서는 막지 않는다)
   const onButton = () => document.activeElement?.tagName === 'BUTTON';
 
-  // ---- 단과대 고르는 칸: 시작 화면의 'A 스테퍼 칸'과 같은 모양(이름 · 값 · ◀ ▶, 왼쪽 반 = 앞, 오른쪽 반 = 다음). label 이 없으면 이름 줄 없이 값만.
-  const stepper = (cls, label, value, key) => '<div class="hud-cell hud-step ' + cls + '" tabindex="0" role="group" aria-label="' + esc(label || '단과대') + '" data-k="' + key + '">'
-    + (label ? '<small>' + esc(label) + '</small>' : '') + '<b>' + esc(value) + '</b>'
-    + '<button type="button" class="hud-half l" tabindex="-1" aria-label="앞">' + chev('l') + '</button><button type="button" class="hud-half r" tabindex="-1" aria-label="다음">' + chev('r') + '</button></div>';
-  // 코스 칸(판의 코스 고르기): 단과대 칸과 같은 모양 · 같은 ◀ ▶. 글은 PC 'B · 언더우드 · 청송대' · 휴대폰 '코스 B'(hud.css 가 고른다). 코스가 하나면 ◀ ▶ 없이 이름만
+  // ---- 단과대 고르는 칸(2026-11-26 사용자 "토글 계속 눌러갖고 바꿔야하는데 드랍다운 형식으로 고를 수 있으면 더 편할 것 같고" — 예전에는 ◀ ▶ 로 하나씩 넘겼다):
+  //   보이는 것은 같은 칸(이름 · 값 · 아래 꺾쇠), 그 위를 투명한 진짜 <select> 가 다 덮는다 — 어디를 눌러도 운영체제의 목록(휴대폰은 고르기 바퀴)이 열리고,
+  //   키보드(↑ ↓ · Space · 글자) · 화면 읽기는 브라우저의 것. 초점 · 값은 <select>(data-k="college"), 칸의 <b> 는 보이는 글자. label 이 없으면 이름 줄 없이 값만.
+  const collegePick = (label, list, value) => '<div class="hud-cell rk-college">' + (label ? '<small>' + esc(label) + '</small>' : '') + '<b aria-hidden="true">' + esc(value) + '</b>' + chev('d')
+    + '<select data-k="college" aria-label="단과대">' + list.map(n => '<option value="' + esc(n) + '"' + (n === value ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></div>';
+  const wirePick = (box, set) => { const s = box?.querySelector('select'); if (s) s.addEventListener('change', () => set(s.value, s)); };
+  // 코스 칸(판의 코스 고르기): 시작 화면의 'A 스테퍼 칸'과 같은 모양(값 · ◀ ▶, 왼쪽 반 = 앞, 오른쪽 반 = 다음). 글은 PC 'B · 언더우드 · 청송대' · 휴대폰 '코스 B'(hud.css 가 고른다). 코스가 하나면 ◀ ▶ 없이 이름만
   const courseCell = (c, more) => '<div class="hud-cell hud-step rk-course"' + (more ? ' tabindex="0"' : '') + ' role="group" aria-label="코스" data-k="course"><b><span class="rk-long">' + esc(c.id) + ' · ' + esc(c.name) + '</span><span class="rk-short">' + esc(c.label || '코스 ' + c.id) + '</span></b>'
     + (more ? '<button type="button" class="hud-half l" tabindex="-1" aria-label="앞 코스">' + chev('l') + '</button><button type="button" class="hud-half r" tabindex="-1" aria-label="다음 코스">' + chev('r') + '</button>' : '') + '</div>';
   const wireStepper = (box, list, get, set) => {
@@ -101,14 +106,14 @@ export function attachRanking(root) {
       + '<div class="rk-head"><h2>랭킹</h2><span class="rk-count">' + esc(count) + (count && data.klass ? ' · ' + esc(data.klass) : '') + '</span><button type="button" class="rk-close" data-k="close">닫기<kbd>ESC</kbd></button></div>'
       + '<div class="rk-bar"><div class="rk-tabs rk-modes" role="group" aria-label="모드">' + modes.map(m => '<button type="button" data-k="m:' + esc(m.id) + '" aria-pressed="' + (m.id === data.mode) + '">' + (m.note ? '<small>' + esc(m.note) + '</small>' : '') + '<b>' + esc(m.name) + '</b></button>').join('') + '</div>'
       + '<div class="rk-scope">' + courseCell(here, courses.length > 1) + '<div class="rk-seg" role="group" aria-label="보기">' + scopes.map(s => '<button type="button" data-k="s:' + esc(s.id) + '" aria-pressed="' + (s.id === data.scope) + '">' + esc(s.name) + '</button>').join('') + '</div>'
-      + (data.scope === 'college' ? stepper('rk-college', '', data.college || '', 'college') : '') + '</div></div>'
+      + (data.scope === 'college' ? collegePick('', data.colleges || [], data.college || '') : '') + '</div></div>'
       + body + '</div>';
     boardLayer.querySelector('.rk-close').addEventListener('click', () => closeBoard());
     boardLayer.querySelectorAll('[data-k^="m:"]').forEach(b => b.addEventListener('click', () => { if (b.getAttribute('aria-pressed') !== 'true') boardHandlers.onMode?.(b.dataset.k.slice(2)); }));
     wireStepper(boardLayer.querySelector('.rk-course'), courses.map(c => c.id), () => here.id, id => boardHandlers.onCourse?.(id));
     boardLayer.querySelectorAll('[data-k^="s:"]').forEach(b => b.addEventListener('click', () => { if (b.getAttribute('aria-pressed') !== 'true') boardHandlers.onScope?.(b.dataset.k.slice(2)); }));
     boardLayer.querySelector('.rk-retry')?.addEventListener('click', () => boardHandlers.onRetry?.());
-    wireStepper(boardLayer.querySelector('.rk-college'), data.colleges || [], () => data.college, name => boardHandlers.onCollege?.(name));
+    wirePick(boardLayer.querySelector('.rk-college'), name => { if (name !== data.college) boardHandlers.onCollege?.(name); });
     // 내 자리: 내 줄이 목록 안에 다 보이지 않으면(멀리 있거나 받은 쪽 밖) 판 아래에 노란 줄로 붙인다
     const list = boardLayer.querySelector('.rk-list'), pin = boardLayer.querySelector('.rk-mine');
     const pinCheck = () => {
@@ -128,7 +133,9 @@ export function attachRanking(root) {
   }
   function boardKey(event, code) {
     const list = boardLayer.querySelector('.rk-list'), focus = document.activeElement;
-    if ((code === 'ArrowLeft' || code === 'ArrowRight') && (focus?.classList.contains('rk-college') || focus?.classList.contains('rk-course'))) { event.preventDefault(); focus._step?.(code === 'ArrowLeft' ? -1 : 1); return; }
+    // 단과대 목록에 초점: ↑ ↓ · Space · Enter · 글자는 브라우저의 것(목록을 열거나 바로 고른다 — 목록의 스크롤로 넘어가지 않는다)
+    if (focus?.tagName === 'SELECT') return;
+    if ((code === 'ArrowLeft' || code === 'ArrowRight') && focus?.classList.contains('rk-course')) { event.preventDefault(); focus._step?.(code === 'ArrowLeft' ? -1 : 1); return; }
     // 모드 · 보기 단추 사이를 ← → 로 옮긴다(누르는 것은 Enter · Space)
     if ((code === 'ArrowLeft' || code === 'ArrowRight') && focus?.closest('.rk-tabs, .rk-seg')) {
       event.preventDefault(); const group = [...focus.parentNode.children], at = group.indexOf(focus); group[(at + (code === 'ArrowLeft' ? -1 : 1) + group.length) % group.length].focus(); return;
@@ -222,7 +229,7 @@ export function attachRanking(root) {
     entryLayer.innerHTML = '<form class="rk-form" novalidate><h2>닉네임</h2>'
       + '<label class="rk-field"><input type="text" name="nick" maxlength="' + max + '" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="닉네임" value="' + esc(entryData.name || '') + '"><output aria-live="polite"></output></label>'
       + '<p class="rk-err" role="alert"></p>'
-      + stepper('rk-college', '단과대', entryData.college, 'college')
+      + collegePick('단과대', entryData.colleges, entryData.college)
       + (edit ? '' : '<p class="rk-public">순위에 공개돼요 · 실명 · 학번 · 연락처는 넣지 마세요</p>')
       + '<div class="rk-acts"><button type="submit" class="rk-ok">' + (edit ? '저장' : '올리기') + '<kbd>ENTER</kbd></button><button type="button" class="rk-no">' + (edit ? '취소' : '나중에') + '<kbd>ESC</kbd></button></div>'
       + (edit && entryData.erase !== false ? '<button type="button" class="rk-erase">내 기록 지우기</button>' : '') + '</form>';
@@ -230,11 +237,11 @@ export function attachRanking(root) {
     let busy = false;
     const sync = () => { const n = len(input.value.trim()); out.textContent = n + ' / ' + max; ok.disabled = busy || n === 0; };
     const showError = text => { err.textContent = text || ''; field.dataset.bad = String(!!text); };
-    const lock = on => { busy = on; entryLayer.dataset.busy = String(on); for (const b of form.querySelectorAll('.rk-no, .rk-erase')) b.disabled = on; input.readOnly = on; sync(); };
+    const lock = on => { busy = on; entryLayer.dataset.busy = String(on); for (const b of form.querySelectorAll('.rk-no, .rk-erase, .rk-college select')) b.disabled = on; input.readOnly = on; sync(); };
     input.addEventListener('input', () => { sync(); if (err.textContent) showError(''); });
     sync(); showError(entryData.error);
     const cell = form.querySelector('.rk-college');
-    wireStepper(cell, entryData.colleges, () => entryData.college, name => { if (busy) return; entryData.college = name; cell.querySelector('b').textContent = name; });
+    wirePick(cell, (name, s) => { if (busy) { s.value = entryData.college; return; } entryData.college = name; cell.querySelector('b').textContent = name; });
     // 부르는 쪽의 답(글자 · Promise)을 받아 닫거나 한 줄을 보인다. 잘못된 줄은 입력 칸의 빨간 테로(지우기의 잘못은 테 없이)
     const settle = (answer, onField) => {
       // 기다리는 동안 판이 닫히거나 다시 그려졌으면 그 답은 버린다
@@ -262,10 +269,8 @@ export function attachRanking(root) {
     input.focus({ preventScroll: true }); input.setSelectionRange(input.value.length, input.value.length);
   }
   function entryKey(event, code) {
-    const focus = document.activeElement;
-    if ((code === 'ArrowLeft' || code === 'ArrowRight') && focus?.classList.contains('rk-college')) { event.preventDefault(); focus._step?.(code === 'ArrowLeft' ? -1 : 1); return; }
-    if ((code === 'Enter' || code === 'NumpadEnter') && focus?.tagName !== 'BUTTON') { event.preventDefault(); if (!event.repeat) entryLayer._submit?.(); return; }
-    if ((code === 'Space' || code === ' ') && focus?.classList.contains('rk-college')) { event.preventDefault(); focus._step?.(1); }
+    // Enter = 올리기 · 저장(단과대 칸에 초점이 있어도 — 목록은 Space · ↑ ↓ · 누르기로 연다)
+    if ((code === 'Enter' || code === 'NumpadEnter') && document.activeElement?.tagName !== 'BUTTON') { event.preventDefault(); if (!event.repeat) entryLayer._submit?.(); }
   }
   function closeEntry(cancel) {
     if (entryLayer.hidden) return; entryGen++; entryLayer.hidden = true; entryLayer.textContent = ''; close(entryLayer);

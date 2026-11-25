@@ -19,6 +19,19 @@ const PREFIX = 'campus-kart:rank:', KEY = PREFIX + 'key', PROFILE = PREFIX + 'pr
 const CONSENT = PREFIX + 'consent', IDENTITY = PREFIX + 'identity', ACCEPTED = PREFIX + 'accepted:', PENDING = PREFIX + 'pending:';
 const TIMEOUT = 8000;
 const LIMIT = 100;
+// 순위표 목록(/api/board)은 캐시를 거친다(CDN 30초 · 서버 15초) — 방금 올린 내 기록이 '전체' 목록에 아직 없을 수 있다
+//   (2026-11-26 사용자 "랭킹 등록했는데 왜 전체에서는 잘 안보여?"). 내 줄(/api/me — CDN 캐시 없음)을 제 순위 자리에 끼워 넣어 바로 보이게 한다.
+//   목록에 내 줄이 이미 같거나 더 빠른 기록으로 있으면(목록이 더 새것) 그대로 둔다. 내 순위가 목록 밖(limit 초과)이면 그대로.
+export function withMine(rows, total, mine, limit = 100) {
+  if (!mine || !Number.isInteger(mine.rank) || mine.rank < 1 || mine.rank > limit) return { rows, total };
+  const same = r => (r.tag || '') === (mine.tag || '') && (r.name ?? r.nick ?? '') === (mine.name ?? mine.nick ?? '');
+  const listed = rows.find(same);
+  if (listed && Number.isFinite(listed.lapMs) && listed.lapMs <= mine.lapMs) return { rows, total };
+  const others = rows.filter(r => !same(r));
+  others.splice(Math.min(mine.rank - 1, others.length), 0, mine);
+  const merged = others.slice(0, limit).map((r, i) => (r === mine || r.rank === i + 1 ? r : { ...r, rank: i + 1 }));
+  return { rows: merged, total: Math.max(total || 0, merged.length, mine.rank) };
+}
 const TOP = 10;              // 결과 판을 띄우는 순위 — 이 안에서 순위가 오를 때만(그 밖의 최고 기록은 조용히 올린다)
 const WARM_EVERY = 60000;    // 위쪽 TOP 명을 다시 받는 간격(ms)
 const RETRY_PLAN = { after: 30000, tries: 4 };   // 조용히 올리다 통신 문제로 못 올렸을 때: 30초 · 60초 · 90초 뒤에 다시
@@ -157,7 +170,8 @@ export function createRank({ root = null, api = '', courses = [], course = '', c
     if (!list.ok) { b.state = 'error'; b.error = message(list); b.retry = again(list); drawBoard(); return; }
     const mine = me?.ok && me.data.me ? me.data.me : null;
     const isMe = row => !!mine && row.rank === mine.rank && (row.tag || '') === (mine.tag || '');
-    b.total = list.data.total; b.rows = (list.data.rows || []).map(r => view(r, isMe)); b.me = mine ? view(mine) : null;
+    const merged = withMine(list.data.rows || [], list.data.total, mine, LIMIT);
+    b.total = merged.total; b.rows = merged.rows.map(r => view(r, isMe)); b.me = mine ? view(mine) : null;
     b.state = b.rows.length ? 'ok' : 'empty'; drawBoard();
     b.toMe = false;   // 내 줄 쪽으로 내리는 것은 결과에서 처음 열 때 한 번만
   }

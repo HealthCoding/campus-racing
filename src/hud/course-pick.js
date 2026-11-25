@@ -16,6 +16,13 @@ const two = n => String(n).padStart(2, '0');
 const OSM = '©&nbsp;<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 // 비스듬히 내려다보는 각도 · 세로 시야(°)(시안 그대로)
 const PITCH = 58 * Math.PI / 180, FOV = 32;
+// 코스 선을 맞추는 규칙(2026-11-26 — 언더우드가 ‹ › 단추 밑까지 차서 꽉 차 보였다): 선은 ‹ › 단추 사이 · 제목 밑 ~ 이름표 위에 넣되
+//   단추와는 단추 폭만큼(좁은 화면은 화면 폭의 4 % 까지만), 제목 · 이름표와는 FIT_GAP_Y 만큼 띄우고, 그 안에서 FIT_BREATH 로 한 번 더 물린다.
+//   맞출 때는 테두리 상자 셈 대신 선을 실제로 화면에 비춰 재고 거리 · 가운데를 고친다(원근 탓에 앞쪽이 넓어져 한쪽으로 쏠리던 것까지).
+const FIT_GAP_X = .04, FIT_GAP_Y = 12, FIT_BREATH = .96;
+// 가로 화면: 코스가 차지하는 폭은 화면 폭의 FIT_MAX_W 까지만(가로로 긴 언더우드가 화면을 꽉 채워 한눈에 안 들어오던 것 — 2026-11-26 사용자. 좁은 롤러코스터는 그대로다).
+// 세로 화면: 폭이 모자라 ‹ › 단추 사이에 가두면 너무 작아지고 캠퍼스 땅 끝의 빈 자리가 보인다 — 화면 가장자리에서만 띄우고 선이 단추 밑을 지나게 둔다(그 전과 같다).
+const FIT_MAX_W = .58;
 
 // 타임어택 내 최고(3바퀴 합계 · 초): 그 코스의 유령 저장소(src/ghost.js — 'campus-kart:ghost:<코스>:<등급>[:<차>]:v<판>') 가운데 가장 빠른 것. 차는 가리지 않는다.
 //   부품을 뺀 판(:flat) · 조정판으로 고친 판(:tuned)은 넣지 않는다. 저장소를 못 읽으면 null.
@@ -89,7 +96,7 @@ export function createCoursePick(THREE, { root, stage, campus, courses, current,
     const flag = new THREE.Mesh(new THREE.BoxGeometry(width * 9, width * 1.4, width * 1.8), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false, depthTest: false }));
     flag.position.set(s0.x, s0.y + 2, s0.z); flag.rotation.y = -Math.atan2(s1.z - s0.z, s1.x - s0.x) + Math.PI / 2; flag.renderOrder = 12;
     for (const m of [core, glow, flag]) { m.castShadow = m.receiveShadow = false; m.frustumCulled = false; }
-    group.add(glow, core, flag); group.userData.base = s0.y; shape.lines.set(key, group); return group;
+    group.add(glow, core, flag); group.userData.base = s0.y; group.userData.pts = pts; shape.lines.set(key, group); return group;
   }
   // 지금 코스에만 있는 것 감추기 · 되돌리기. 빛 웅덩이는 텍스처(DataTexture)의 자료를 잠깐 0 으로 바꿔 끈다(재질은 안 건드린다).
   let away = null, zeros = null;
@@ -118,21 +125,36 @@ export function createCoursePick(THREE, { root, stage, campus, courses, current,
     if (scene.fog && saved.fog) { scene.fog.near = saved.fog.near; scene.fog.far = saved.fog.far; }
     saved = null;
   }
-  // 하늘에서: 코스의 긴 쪽이 화면의 긴 쪽에 오게 남쪽 · 서쪽 중에서 보는 쪽을 고르고, 비어 있는 가운데(위 제목 밑 ~ 아래 이름표 위)에 맞춘다(시안의 aerial)
-  function aerial(c, free, groundY) {
-    const W = innerWidth, H = innerHeight; let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  // 하늘에서: 코스의 긴 쪽이 화면의 긴 쪽에 오게 남쪽 · 서쪽 중에서 보는 쪽을 고르고, 비어 있는 칸(safe = { l, r, t, b } 화면 px)에 맞춘다(시안의 aerial).
+  //   먼저 테두리 상자로 어림하고, 선의 점을 화면에 비춰 잰 상자로 거리(크기)와 가운데를 두 번 고친다.
+  const seen = new THREE.Vector3();
+  function aerial(c, safe, line) {
+    const W = innerWidth, H = innerHeight, groundY = line.userData.base, pts = line.userData.pts;
+    const free = { w: safe.r - safe.l, h: safe.b - safe.t, cx: (safe.l + safe.r) / 2, cy: (safe.t + safe.b) / 2 };
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
     for (const [x, z] of c.course.centre) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, ex = x1 - x0, ez = z1 - z0;
     const fitN = Math.min(free.w / ex, free.h / (ez * Math.sin(PITCH))), fitE = Math.min(free.w / ez, free.h / (ex * Math.sin(PITCH)));
     const east = fitE > fitN * 1.08;   // 서쪽에서 동쪽을 보는 쪽이 크게 들어오면 그쪽(아니면 남쪽에서 북쪽)
     const across = east ? ez : ex, deep = east ? ex : ez;
     const halfV = Math.tan(FOV * Math.PI / 360), halfH = halfV * W / H;
-    const dist = Math.max((across / 2) / (halfH * free.w / W), (deep * Math.sin(PITCH) / 2) / (halfV * free.h / H)) * 1.04;
+    let dist = Math.max((across / 2) / (halfH * free.w / W), (deep * Math.sin(PITCH) / 2) / (halfV * free.h / H)) / FIT_BREATH;
+    let offX = W / 2 - free.cx, offY = H / 2 - free.cy;
     const fx = east ? -1 : 0, fz = east ? 0 : 1;
-    cam.fov = FOV; cam.near = 5; cam.far = 8000;
-    cam.position.set(cx + fx * Math.cos(PITCH) * dist, groundY + Math.sin(PITCH) * dist, cz + fz * Math.cos(PITCH) * dist);
-    cam.up.set(0, 1, 0); cam.lookAt(cx, groundY, cz);
-    cam.setViewOffset(W, H, W / 2 - free.cx, H / 2 - free.cy, W, H); cam.updateProjectionMatrix();
+    cam.fov = FOV; cam.near = 5; cam.far = 8000; cam.up.set(0, 1, 0);
+    const put = () => {
+      cam.position.set(cx + fx * Math.cos(PITCH) * dist, groundY + Math.sin(PITCH) * dist, cz + fz * Math.cos(PITCH) * dist);
+      cam.lookAt(cx, groundY, cz); cam.setViewOffset(W, H, offX, offY, W, H); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+    };
+    const box = () => { let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+      for (const p of pts) { seen.copy(p).project(cam); const x = (seen.x + 1) / 2 * W, y = (1 - seen.y) / 2 * H; l = Math.min(l, x); r = Math.max(r, x); t = Math.min(t, y); b = Math.max(b, y); }
+      return { w: r - l, h: b - t, cx: (l + r) / 2, cy: (t + b) / 2 }; };
+    put();
+    for (let i = 0; i < 2; i++) {
+      let m = box(); const k = Math.min(free.w * FIT_BREATH / m.w, free.h * FIT_BREATH / m.h);
+      if (Number.isFinite(k) && k > 0) { dist /= k; put(); }
+      m = box(); offX += m.cx - free.cx; offY += m.cy - free.cy; put();
+    }
     if (scene.fog) { scene.fog.near = 1e5; scene.fog.far = 2e5; }
   }
   function facts(c) {
@@ -154,12 +176,21 @@ export function createCoursePick(THREE, { root, stage, campus, courses, current,
   function place() {
     const c = courses[at]; if (!c || panel.hidden) return;
     const W = innerWidth, H = innerHeight, narrow = W <= 700, low = H <= 460;
-    const topY = narrow ? 150 : low ? 64 : 110, plate = $('.hud-g-plate').getBoundingClientRect();
-    const bottom = plate.top - (narrow ? 18 : 22), side = narrow ? 18 : low ? 86 : 110;
+    // 비어 있는 칸: ‹ › 단추 사이(단추 폭만큼 더 띄움 — 화면 폭의 FIT_GAP_X 까지만) · 위쪽 글자(제목 · 번호 · 지도 출처가 위에 있으면) 밑 ~ 아래쪽 글자(이름표 · 단추) 위
+    const rect = s => $(s).getBoundingClientRect(), shown = r => r.width > 0 && r.height > 0;
+    const al = rect('.hud-g-arrow.l'), ar = rect('.hud-g-arrow.r'), gapX = Math.min(Math.max(al.width, ar.width), W * FIT_GAP_X);
+    const above = ['.hud-g-head', '.hud-g-count', '.hud-osm'].map(rect).filter(r => shown(r) && r.bottom < H / 2);
+    const below = ['.hud-g-plate', '.hud-g-acts'].map(rect).filter(r => shown(r) && r.top > H / 2);
+    const safe = { l: (shown(al) ? al.right : 0) + gapX, r: (shown(ar) ? ar.left : W) - gapX,
+      t: Math.max(0, ...above.map(r => r.bottom)) + FIT_GAP_Y, b: Math.min(H, ...below.map(r => r.top)) - FIT_GAP_Y };
+    if (H > W) { safe.l = gapX; safe.r = W - gapX; }
+    else if (safe.r - safe.l > W * FIT_MAX_W) { const mid = (safe.l + safe.r) / 2; safe.l = mid - W * FIT_MAX_W / 2; safe.r = mid + W * FIT_MAX_W / 2; }
+    if (safe.r - safe.l < 60) { safe.l = W / 2 - 30; safe.r = W / 2 + 30; }
+    if (safe.b - safe.t < 60) { const m = (safe.t + safe.b) / 2; safe.t = m - 30; safe.b = m + 30; }
     setAway(true);
     const next = lineOf(c, narrow ? 2.2 : low ? 2.0 : 1.6);
     if (line !== next) { if (line) scene.remove(line); line = next; scene.add(line); }
-    aerial(c, { w: W - side * 2, h: Math.max(60, bottom - topY), cx: W / 2, cy: (topY + bottom) / 2 }, line.userData.base);
+    aerial(c, safe, line);
   }
   function move(step) { if (courses.length < 2) return; at = (at + step + courses.length) % courses.length; draw(); }
   const pick = () => handlers?.onPick?.(courses[at].id), back = () => handlers?.onBack?.();
