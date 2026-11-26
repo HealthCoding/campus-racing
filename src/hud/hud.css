@@ -142,6 +142,8 @@ body.touch .hud-cond { justify-content: center; margin: 7px 0 0; }
 .hud-kerb { display: flex; margin: 12px 0 0 3px; transform: skewX(-28deg); transform-origin: left bottom; }
 .hud-kerb i { display: block; width: 27px; height: 9px; background: #fff; }
 .hud-kerb i:nth-child(odd) { background: var(--sinchon-kerb); }
+/* 불러오는 중의 한 줄(처음 온 사람에게만 — 받는 양). 신호등 바로 아래 가운데 */
+.hud-cover > .hud-load-note { position: absolute; left: 50%; top: calc(50% + 58px); transform: translateX(-50%); margin: 0; font-size: 14px; font-weight: 500; white-space: nowrap; opacity: .72; }
 .hud-cover.failed { display: grid; place-content: center; justify-items: center; gap: 18px; }
 .hud-cover.failed p { margin: 0; font-size: 15px; opacity: .85; }
 .hud-fail { max-width: min(560px, 86vw); white-space: pre-wrap; font: 13px/1.5 ui-monospace, Menlo, monospace; color: #ffd0cb; -webkit-user-select: text; user-select: text; }

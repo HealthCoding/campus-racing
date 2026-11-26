@@ -58,7 +58,7 @@ void main(){
 
 // 휴대폰 자동 화질의 '한 번 올리기' 천장: 배율 2, 그리는 화소 360만 이하(아이패드처럼 큰 화면은 덜 올라간다).
 export const MOBILE_LIFT = Object.freeze({ ratio: 2, pixels: 3600000 });
-const isMobile = () => innerWidth < 760 || (globalThis.navigator?.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches);
+export const isMobile = () => innerWidth < 760 || (globalThis.navigator?.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches);
 
 const NIGHT_SKY = `uniform vec3 fogColor, horizon, mid, zenith, glow;
 uniform float glowStrength;

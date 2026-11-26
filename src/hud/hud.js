@@ -330,6 +330,8 @@ export function createHud(root, { course }) {
     phase(name) { root.dataset.phase = name; },
     // 불러오는 중: 읽은 만큼(0~1) 신호등이 하나씩 켜진다
     loading(fraction) { cover.hidden = false; cover.classList.remove('clear'); const lamps = cover.querySelector('.hud-lights'); if (lamps) setLamps(lamps, Math.max(0, Math.min(1, fraction)) * 5 + 1e-6); },
+    // 불러오는 중의 한 줄(신호등 아래 — main.js 가 처음 온 사람에게만 준다). 시작 화면 · 실패 화면이 뜨면 cover 의 내용이 통째로 바뀌어 같이 사라진다.
+    loadNote(text) { let p = cover.querySelector('.hud-load-note'); if (!text) { p?.remove(); return; } if (!cover.querySelector('.hud-lights')) return; if (!p) { p = el('p', 'hud-load-note'); cover.append(p); } p.textContent = text; },
     // 시작 화면(2026-11-23 사용자가 고른 'B 포스터형'): 장면이 화면을 다 쓰고(내 차는 언더우드관 앞 — main.js 의 showcase), 이름은 왼쪽 위에 크게,
     //   설정은 오른쪽 위(터치 기기에서만 그 옆에 'PC 권장' 한 줄), 아래 한 줄(휴대폰 세로는 아래 묶음)에 모드 · 고르는 칸(차 · 속도 · 상대) · 출발.
     //   고르는 칸은 'A 스테퍼 칸'(2026-11-23): 이름 + 눈금 + 지금 값 + ◀ ▶ — 왼쪽 반은 앞 값, 오른쪽 반은 다음 값(속도 · 상대 · 카트), '차' 칸은 값 + › 이고 onCar() 를 부른다(차 고르기 화면).

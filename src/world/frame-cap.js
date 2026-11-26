@@ -66,3 +66,11 @@ export const showPower = ({ capped = false, slow = false, touch = false, chargin
 // 안내에 쓸 낱말: 애플 기기는 설정에 '저전력 모드'로 나오고, 그 밖(갤럭시 · 윈도우 · 크롬)은 '절전 모드'가 가깝다.
 export const powerWord = (userAgent = '') => /Mac|iPhone|iPad|iPod/.test(userAgent) ? '저전력 모드' : '절전 모드';
 export const powerText = (userAgent = '') => powerWord(userAgent) + '에서는 화면이 끊길 수 있어요';
+
+// ---- 그리는 장수 묶기(2026-11-26 사용자: "실행하고 노트북이 불을 내뿜는다 등등의 피드백이오는데") ----
+// 주사율이 높은 화면(120 · 144 · 165 Hz)에서 브라우저가 부르는 대로 다 그리면 그래픽 장치가 60 Hz 화면의 두 배 넘게 일한다(같은 장면을 더 자주 그릴 뿐) → 노트북이 뜨거워지고 팬이 돈다.
+// 앞에 그린 화면에서 FRAME_MIN ms 가 안 지난 부름은 건너뛴다: 60 · 75 · 90 Hz 는 그대로 다 그리고, 120 → 60장 · 144 → 72장 · 165 → 82장 · 240 → 80장이 된다.
+//   10.5 = 90 Hz 의 간격(11.1 ms)보다 짧고 120 Hz 의 간격(8.3 ms)보다 길다. 화면을 부르는 시각은 화면 주사에 맞춰져 있어 간격이 고르다(늦을 수는 있어도 이르지는 않다).
+// 주행 계산은 지난 시간만큼 도므로(60 Hz 화면과 같은 길) 기록 · 서버 검증은 그대로다. main.js 의 frame 이 쓴다 — 주소 ?fps=max 는 묶지 않는다(재 볼 때).
+export const FRAME_MIN = 10.5;
+export const skipFrame = (now, last, min = FRAME_MIN) => now >= last && now - last < min;

@@ -12,8 +12,8 @@
 //   &rankApi=<주소>(게임을 localhost · 127.0.0.1 로 열 때만: 같은 두 호스트의 HTTP 주소를 쓰거나 0 · off 로 끈다. 평소에는 meta[name="rank-api"] 를 따른다)
 import './net/unpack.js';   // 맨 먼저: 올릴 묶음의 3D 파일은 gzip 으로 줄여져 있다 — fetch 를 감싸 받아서 푼다(개발 중의 원본은 그대로 지나간다)
 import * as THREE from '../bts/vendor/three.module.js';
-import { createStage, LOOKS } from './world/stage.js';
-import { createCapProbe, createSlowWatch, showPower, powerText } from './world/frame-cap.js';
+import { createStage, LOOKS, isMobile } from './world/stage.js';
+import { createCapProbe, createSlowWatch, showPower, powerText, skipFrame } from './world/frame-cap.js';
 import { loadCampus } from './world/campus.js';
 import { createTrack } from './track/track.js';
 import { createCourseWorld } from './track/parts.js';
@@ -130,6 +130,9 @@ async function boot(query, picked, hud, game) {
   const TIP_KEY = 'campus-kart:tip'; let tipOn = false;
   try { let seen = localStorage.getItem(TIP_KEY); if (!seen) { seen = Object.keys(localStorage).some(k => k.startsWith('campus-kart:')) ? 'old' : 'new'; localStorage.setItem(TIP_KEY, seen); } tipOn = seen === 'new'; } catch { tipOn = true; }
   const seeTip = () => { if (!tipOn) return; tipOn = false; try { localStorage.setItem(TIP_KEY, '1'); } catch {} };
+  // 불러오는 중의 한 줄 — 처음 온 사람에게만(2026-11-26 사용자: "용량이랑 첫 로딩 관련해서 추가 설명 달아줘야할거같아"). 다시 온 사람은 브라우저에 남은 것을 써서 거의 안 받는다.
+  //   18 = 처음 들어올 때 받는 양(검증/first-load.mjs 로 잰 것 — 2026-11-26 정식 주소 18.3 MB: 시작 화면까지 13.8 ~ 15 MB + 나머지 차 모형). 2 MB 넘게 달라지면 이 숫자를 고친다.
+  if (tipOn) hud.loadNote('처음 한 번만 약 18MB를 받아요');
   const capProbe = createCapProbe(), slowWatch = createSlowWatch(); let capWatch = true, powerShown = '', powerAt = 0, charging;   // charging: 모르면 undefined(사파리 · 파이어폭스)
   try { navigator.getBattery?.().then(b => { charging = b.charging; b.addEventListener('chargingchange', () => { charging = b.charging; }); }, () => {}); } catch {}
   const powerNow = () => showPower({ capped: capProbe.capped, slow: slowWatch.slow, touch: TOUCH, charging }) ? powerText(navigator.userAgent) : '';
@@ -155,10 +158,13 @@ async function boot(query, picked, hud, game) {
   const createPost = usePost ? (await import('./world/post.js')).createPost : null;
   // 밤 밝기 조정값: 주소 ?night=<id>(night-tune.js — 2026-11-23 '앞길이 안 보인다'의 후보들). 없으면 지금 그대로.
   const nightTune = isNight ? (await import('./world/night-tune.js')).nightTune(query.get('night')) : null;
-  // 화질: 주소 ?quality= 가 먼저, 없으면 설정의 '화질' 줄에서 고른 것(브라우저에 남는다 — 터치 기기에만 그 줄이 있다), 없으면 자동
+  // 화질: 주소 ?quality= 가 먼저, 없으면 설정의 '화질' 줄에서 고른 것(브라우저에 남는다), 없으면 자동.
+  //   PC 의 기본을 '가볍게'로 내리는 안(2026-11-26 사용자: "기본적으로 화질을 가볍게로 설정해보면 되는거 아니야?")은 화면을 견줘 보고 **안 하기로 했다**: 그리는 일은 3분의 1쯤으로 줄지만(배율 1 · MSAA 끔 · 블룸 반 해상도)
+  //     화면 배율 2 인 노트북에서 가로등 빛이 네모나게 번지고 지붕에 물결무늬가 생기고 가장자리가 계단진다 — 사용자가 고름: '자동 그대로'. 뜨거운 사람은 설정의 '화질'에서 가볍게를 고른다. 바꾸려면 PC_QUALITY 한 곳.
+  const PHONE = isMobile(), PC_QUALITY = 'auto';
   const QUALITY_KEY = 'campus-kart:quality', QUALITIES = ['auto', 'smooth', 'high'];
   let qualityPick = QUALITIES.includes(query.get('quality')) ? query.get('quality') : null; try { if (!qualityPick && QUALITIES.includes(localStorage.getItem(QUALITY_KEY))) qualityPick = localStorage.getItem(QUALITY_KEY); } catch {}
-  const stage = createStage(THREE, canvas, { quality: qualityPick || 'auto', look, createPost, dayFx, nightLook: nightTune?.look });
+  const stage = createStage(THREE, canvas, { quality: qualityPick || (PHONE ? 'auto' : PC_QUALITY), look, createPost, dayFx, nightLook: nightTune?.look });
   const campus = await loadCampus(THREE, { onProgress: p => hud.loading(p && p.total ? p.loaded / p.total : 0) });
   stage.scene.add(campus.group);
   // 코스 부품(점프대 · 부스트 발판 · 공중 구간): 자료는 course-b.parts.js, 계산은 parts.js. 노면과 방호벽은 공중 구간이 들어 올린 높이를 따른다.
@@ -300,11 +306,11 @@ async function boot(query, picked, hud, game) {
     if (id === 'hand' && (value === 'right' || value === 'left')) { steerHand = value; input.setSteerHand(value); try { localStorage.setItem(HAND_KEY, value); } catch {} }
     if (id === 'radio' && RADIO_ON && RADIO_VOICES.includes(value)) { settings.radio = value; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {} radio.setVoice(value); if (value !== 'off') radio.preload(); }
   }
-  // '조향' · '화질' 줄은 터치 기기에만(PC 는 자동 화질이 이미 맞춰져 있고 — pacer.js 의 맥북 저전력 사례 — 줄이 늘면 판만 길어진다. PC 는 주소 ?quality= 로 고른다).
+  // '조향' 줄은 터치 기기에만. '화질' 줄은 모두에게(2026-11-26 "노트북이 불을 내뿜는다" — 그 전에는 터치 기기에만 있고 PC 는 주소 ?quality= 로만 골라서, 뜨거운 노트북이 '가볍게'를 고를 길이 없었다).
   const settingsList = () => [{ id: 'rank', name: '순위', options: [{ id: 'table', name: '표' }, { id: 'number', name: '숫자' }], value: settings.rank },
     ...(GHOST_ON ? [{ id: 'ghost', name: '유령', options: [{ id: 'on', name: '켬' }, { id: 'off', name: '끔' }], value: ghostOn ? 'on' : 'off' }] : []),
-    ...(TOUCH ? [{ id: 'hand', name: '조향', options: [{ id: 'right', name: '오른손' }, { id: 'left', name: '왼손' }], value: steerHand },
-      { id: 'quality', name: '화질', options: [{ id: 'auto', name: '자동' }, { id: 'smooth', name: '가볍게' }, { id: 'high', name: '선명하게' }], value: stage.quality }] : []),
+    ...(TOUCH ? [{ id: 'hand', name: '조향', options: [{ id: 'right', name: '오른손' }, { id: 'left', name: '왼손' }], value: steerHand }] : []),
+    { id: 'quality', name: '화질', options: [{ id: 'auto', name: '자동' }, { id: 'smooth', name: '가볍게' }, { id: 'high', name: '선명하게' }], value: stage.quality },
     ...(audio ? [{ id: 'sound', name: '소리', options: [{ id: 'on', name: '켬' }, { id: 'off', name: '끔' }], value: audio.muted ? 'off' : 'on' }, ...(MUSIC_OFF ? [] : [{ id: 'music', name: '음악', options: [{ id: 'on', name: '켬' }, { id: 'off', name: '끔' }], value: musicOn ? 'on' : 'off' }]), ...(RADIO_ON ? [{ id: 'radio', name: '무전', options: radio.voices, value: settings.radio }] : [])] : [])];
   // 길 밖으로 떨어진 카트를 되돌려 놓기(난간 없는 구간 · 안전망) — 내 카트의 것. 상대는 경주 계산이 제 것을 갖는다.
   const rescue = built.rescue, watch = rescue.watcher();   // 피트레인도 길 위다(buildCourse)
@@ -689,8 +695,13 @@ async function boot(query, picked, hud, game) {
     if (clock.started) recorder.sample(time - lapStart, sim.state);
   }
 
+  const FPS_MAX = query.get('fps') === 'max';   // 그리는 장수를 묶지 않는다(재 볼 때)
   function frame(now) {
     capProbe.sample(now);   // 그리는 중의 간격은 '안 묶였다' 쪽으로만 쓰인다(충전기를 꽂으면 짧은 간격이 나와 안내가 사라진다)
+    // 그리는 장수 묶기(frame-cap.js 의 skipFrame — 2026-11-26 "노트북이 불을 내뿜는다"): 주사율이 높은 화면에서는 걸러 그린다(120 Hz → 60장). 건너뛴 부름은 시간도 안 쓴다(last 그대로).
+    //   PC 에서 화질 '선명하게'를 고른 사람은 묶지 않는다(사용자: "60으로 아예 줄여버리는거야 아니면 필요한사람만 줄이는거야?" — 뜨거운지는 웹에서 알 수 없어 기본은 묶고, 필요 없는 사람이 설정에서 푼다).
+    if (!FPS_MAX && !(stage.quality === 'high' && !PHONE) && skipFrame(now, last)) { game.skipped = (game.skipped || 0) + 1; requestAnimationFrame(frame); return; }
+    game.frames = (game.frames || 0) + 1;
     slowWatch.sample(now, game.phase === 'ready' && !document.hidden);   // 시작 화면을 그리는 간격 — 느린 노트북(frame-cap.js)
     if (game.phase === 'ready' && now >= powerAt) { powerAt = now + 1000; const text = powerNow(); if (text !== powerShown) { powerShown = text; hud.power(text); } }
     if (now >= nextRankWarm && game.phase === 'racing') warmRank(now);   // 오래 달리는 동안에도 1분마다 대기 기록과 위쪽 순위를 확인한다
@@ -823,13 +834,13 @@ async function boot(query, picked, hud, game) {
     let gpu = '?'; try { const gl = stage.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)).replace(/^ANGLE \(|\)$/g, '').slice(0, 64); } catch {}
     const ua = navigator.userAgent, named = ['Edg', 'OPR', 'SamsungBrowser', 'CriOS', 'FxiOS', 'Firefox', 'Chrome'].map(k => ua.match(new RegExp(k + '/(\\d+)')) && k + ' ' + ua.match(new RegExp(k + '/(\\d+)'))[1]).find(Boolean);
     const browser = named || (/Safari/.test(ua) && ua.match(/Version\/(\d+)/) ? 'Safari ' + ua.match(/Version\/(\d+)/)[1] : '?'), os = /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /Mac/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : '?';
-    let last = 0, sum = 0, n = 0, worst = 0, shown = 0;
+    let last = 0, sum = 0, n = 0, worst = 0, shown = 0, drawnAt = game.frames || 0;   // drawnAt: 그린 장수(건너뛴 부름은 안 센다 — skipFrame)
     const tick = t => {
       if (last) { const d = t - last; if (d < 1000) { sum += d; n++; worst = Math.max(worst, d); } } last = t;
       if (t - shown > 600 && n) {
         const i = stage.info(), c = stage.renderer.domElement, state = (i.kept ? ' · 내린 채로' : '') + (i.raised ? ' · 되올림' : '') + (i.restored ? ' · 되돌림' : '') + (i.lifted ? ' · 올림' : '');
-        box.textContent = `${Math.round(1000 * n / sum)} fps · 평균 ${(sum / n).toFixed(1)} ms · 가장 긴 ${worst.toFixed(0)} ms\n배율 ${i.pixelRatio}(처음 ${i.ceiling} · 내림 ${i.drops}번${state}) · ${c.width}×${c.height} · 화질 ${i.quality}\n호출 ${i.calls} · 삼각형 ${(i.triangles / 1e6).toFixed(2)}M · ${gpu}\n가장 짧은 간격 ${Number.isFinite(capProbe.min) ? capProbe.min.toFixed(1) + ' ms' : '?'} → ${capProbe.capped ? '30장으로 묶임' : capProbe.open ? '안 묶임' : '모름'} · 시작 화면 ${slowWatch.slow ? '느림' : '보통'}(${slowWatch.average ? slowWatch.average.toFixed(1) + ' ms' : '?'}) · 충전 ${charging === true ? '중' : charging === false ? '아님' : '모름'}\n${browser} · ${os} · 안내 ${powerNow() ? '보임' : '없음'}`;
-        sum = 0; n = 0; worst = 0; shown = t;
+        box.textContent = `${Math.round(1000 * ((game.frames || 0) - drawnAt) / sum)} fps(화면 ${Math.round(1000 * n / sum)} Hz) · 평균 ${(sum / n).toFixed(1)} ms · 가장 긴 ${worst.toFixed(0)} ms\n배율 ${i.pixelRatio}(처음 ${i.ceiling} · 내림 ${i.drops}번${state}) · ${c.width}×${c.height} · 화질 ${i.quality}\n호출 ${i.calls} · 삼각형 ${(i.triangles / 1e6).toFixed(2)}M · ${gpu}\n가장 짧은 간격 ${Number.isFinite(capProbe.min) ? capProbe.min.toFixed(1) + ' ms' : '?'} → ${capProbe.capped ? '30장으로 묶임' : capProbe.open ? '안 묶임' : '모름'} · 시작 화면 ${slowWatch.slow ? '느림' : '보통'}(${slowWatch.average ? slowWatch.average.toFixed(1) + ' ms' : '?'}) · 충전 ${charging === true ? '중' : charging === false ? '아님' : '모름'}\n${browser} · ${os} · 안내 ${powerNow() ? '보임' : '없음'}`;
+        sum = 0; n = 0; worst = 0; shown = t; drawnAt = game.frames || 0;
       }
       requestAnimationFrame(tick);
     };
