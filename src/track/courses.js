@@ -29,7 +29,9 @@ export const COURSES = [
   //   그랑프리 3바퀴 = 상대 '어려움' 1등 3분 50초 안팎(사용자 기준 3 ~ 4분). branch = 체육관 지름길(막아 둔 갈래 — src/track/branch.js 가 그리기만).
   //   cameraIgnore: 모델 상자가 길까지 덮는 건물(길과 실제 모델은 게임 3D 발자국으로 재서 떨어져 있다 — 시안/묶은코스_src/clash.mjs). lampIgnore 도 같은 까닭. lampOver: 상판이 그 위를 지나는 노천극장.
   //   pit = '가 출발선 뒤 오른쪽'(course-d.pit.js) · damageScale 1.5(2026-11-25 사용자가 시안에서 고름 — 3바퀴라 B 보다 피트에 들를 까닭이 적어서: 바퀴마다 한 번 박는 사람은 들를지 반반, 두 번이면 들르는 게 8초 빠르다)
-  { id: 'D', name: '캠퍼스 롤러코스터', label: '롤러코스터', ...dataD, laps: { gp: 3 }, damageScale: 1.5,
+  //   **보이는 이름 = '노천극장 · 공대' · 칸의 짧은 이름 '노천극장'**(2026-11-26 사용자 "롤러코스터는 코스 이름이 … 비직관적" — 'B 언더우드 · 청송대'처럼 지나는 곳 이름으로. 그 전에는 '캠퍼스 롤러코스터' · '롤러코스터').
+  //   자료 파일 course-d.js 안의 name('캠퍼스 롤러코스터')은 **그대로 둔다** — 코스판 해시(trialVersion)에 들어가 있어 고치면 순위표가 새 판이 된다. 화면은 여기의 name · label 만 쓴다.
+  { id: 'D', name: '노천극장 · 공대', label: '노천극장', ...dataD, laps: { gp: 3 }, damageScale: 1.5,
     show: { at: 1421, attract: 2260 }, lampOver: ['amphitheater'],
     // props = 부딪히면 날아가는 소품(2026-11-25 재미 손질 — src/track/fly-props.js, 보이기만 한다: 코스판에 안 든다). 굽이를 나와 바깥으로 흐르는 자리의 길 가장자리.
     props: [
