@@ -335,6 +335,25 @@ export function makeBuffers(sr, tyreMode = 'old', engine = 'race') {
   };
 }
 
+// 탭이 뒤로 가면(document.hidden) 소리 전체를 세우고(audio.pause(true)) 돌아오면 켠다(2026-11-26 — 그리기가 멈추면 엔진이 마지막 값을 붙든 채 계속 울렸다).
+//   blocked(): 참이면 아무것도 안 한다(게임의 멈춤 판 — 이미 세워 두었고, 판을 닫을 때 켠다). 소리를 연 적이 없으면 audio.pause 가 그냥 돌아온다.
+//   세우기는 delay 초 늦춘다: music.js 가 같은 때 음악을 잦아들게 하고, 미리 넣어 둔 음(MUSIC.lookahead 0.15초 앞까지)을 마저 흘려보낸 뒤에 세워야 돌아올 때 그 음이 새 음과 겹치지 않는다.
+//   돌아와서 켰는데도 소리 판이 안 도는 경우(사용자 동작 없이는 resume 을 안 받아 주는 브라우저 · 휴대폰에서 다른 앱에 갔다 온 뒤)에 대비해, 돌아온 뒤 첫 누름에 한 번 더 켠다(돌고 있으면 안 건드린다).
+export function pauseWhenHidden({ audio, doc = document, blocked = () => false, delay = 0.25, later = setTimeout, cancel = clearTimeout }) {
+  let timer = 0, armed = false;
+  function retry() { disarm(); const state = audio.state; if (!doc.hidden && !blocked() && state && state !== 'running' && state !== 'off') audio.pause(false); }
+  function arm() { if (armed) return; armed = true; doc.addEventListener('pointerdown', retry, true); doc.addEventListener('keydown', retry, true); }
+  function disarm() { if (!armed) return; armed = false; doc.removeEventListener('pointerdown', retry, true); doc.removeEventListener('keydown', retry, true); }
+  const onChange = () => {
+    if (timer) { cancel(timer); timer = 0; }
+    if (blocked()) return;
+    if (doc.hidden) { disarm(); timer = later(() => { timer = 0; if (doc.hidden && !blocked()) audio.pause(true); }, delay * 1000); }
+    else { audio.pause(false); arm(); }
+  };
+  doc.addEventListener('visibilitychange', onChange);
+  return () => { doc.removeEventListener('visibilitychange', onChange); disarm(); if (timer) cancel(timer); timer = 0; };
+}
+
 export function createAudio({ tuning = SOUND, tyre: tyreMode = 'b3', car = null } = {}) {   // tyre: 'old'(지금 B) | 'b1' | 'b2' | 'b3' — 드리프트 소리만 바뀐다. car: 차 id 또는 목소리 id(없으면 지금 소리)
   // 목소리: 'race'(지금 소리)는 회전 값을 tuning(SOUND)에서 읽는다 — 시안 · 검증이 tuning 을 덮어써도 그 전과 똑같이 돈다
   const voiceOf = id => { const v = { ...ENGINES[engineOf(id)] }; if (v.id === 'race') Object.assign(v, { idle: tuning.idleRpm, redline: tuning.redline, gears: tuning.gears, up: tuning.shiftUp, down: tuning.shiftDown, launch: tuning.launchRpm, boostRpm: tuning.boostRpm, off: tuning.engineOff }); return v; };
@@ -344,6 +363,10 @@ export function createAudio({ tuning = SOUND, tyre: tyreMode = 'b3', car = null 
   let lastT = 0, rpm = V.idle, gear = 0, load = 0, wob = 0, cutUntil = 0, wasBoost = false, wasKind = '', wasStock = null, wasFull = false, lastHit = 0, lastCrash = 0, nextWrench = 0, lastLand = 0, windHold = 0, lastShift = -9, rnd = Math.random;
   let alt = null, tw = 0, armed = true, peakSlip = 0, minSlip = 9, lastChirp = -9;   // 드리프트 후보(b1~b3)용
   let lastSpeed = 0, lastThr = 0, spool = 0, bovArmed = false;   // 목소리 덧소리(터보 · 접촉기)용
+  // 메뉴 화면(view.menu — 시작 · 차 고르기 · 코스 고르기 · 결과 화면)에서는 엔진(엔진 · 흡기 · 덧소리)을 끈다: awake 가 0 ↔ 1 을 MENU_FADE 초 시간 상수로 오간다(0.25초쯤이면 다 바뀐다).
+  //   처음 update 는 그 화면의 값에서 바로 시작한다(소리를 연 직후 시작 화면에서 엔진이 잠깐 새지 않게). 1 일 때는 곱해도 예전과 같은 값이다.
+  let awake = null;
+  const MENU_FADE = 0.07;
   const engineCache = {}, buildMs = {};   // 목소리마다 처음 쓸 때 만든 AudioBuffer 넷을 간직한다(차를 다시 바꿀 때 안 만든다)
   try { muted = localStorage.getItem(KEY) === '1'; } catch {}
   const makeBuf = data => { const b = ctx.createBuffer(1, data.length, ctx.sampleRate); b.getChannelData(0).set(data); return b; };
@@ -483,12 +506,12 @@ export function createAudio({ tuning = SOUND, tyre: tyreMode = 'b3', car = null 
     if (x.turbo) {   // 부하 × 회전만큼 0.4초에 걸쳐 차오르고, 높이도 따라 오른다. 많이 차 있다 떼면 '피시'(bov)
       const T = V.turbo; spool += (load * r - spool) * (1 - Math.exp(-dt / (load * r > spool ? 0.4 : 0.25)));
       x.turbo.filter.frequency.setTargetAtTime(T.f[0] + (T.f[1] - T.f[0]) * spool, t, 0.05);
-      x.turbo.gain.gain.setTargetAtTime(T.level * V.gain * spool * spool * (0.3 + 0.7 * load), t, 0.05);
+      x.turbo.gain.gain.setTargetAtTime(T.level * V.gain * spool * spool * (0.3 + 0.7 * load) * awake, t, 0.05);
       if (spool > 0.45 && load > 0.6) bovArmed = true;
       if (T.bov && bovArmed && thr < 0.2) { bovArmed = false; burst({ type: 'highpass', from: 2600, to: 1000, q: 0.7, seconds: 0.4, level: T.bov * Math.min(1, spool * 1.5), attack: 0.01 }); }
     }
-    if (x.rumble) { const R = V.rumble; x.rumble.filter.frequency.setTargetAtTime(R.f[0] + R.f[1] * speed, t, 0.1); x.rumble.gain.gain.setTargetAtTime(R.level * V.gain * moving * (R.speed ? clamp01(speed / R.speed) : 1), t, 0.08); }
-    if (x.pump) { const P = V.pump; x.pump.filter.frequency.setTargetAtTime(P.k * rpm, t, 0.03); x.pump.gain.gain.setTargetAtTime(P.level * V.gain * (0.4 + 0.6 * load), t, 0.05); }   // 지게차: 엔진에 물린 유압 펌프 — 회전을 따라 오르는 윙
+    if (x.rumble) { const R = V.rumble; x.rumble.filter.frequency.setTargetAtTime(R.f[0] + R.f[1] * speed, t, 0.1); x.rumble.gain.gain.setTargetAtTime(R.level * V.gain * moving * (R.speed ? clamp01(speed / R.speed) : 1) * awake, t, 0.08); }
+    if (x.pump) { const P = V.pump; x.pump.filter.frequency.setTargetAtTime(P.k * rpm, t, 0.03); x.pump.gain.gain.setTargetAtTime(P.level * V.gain * (0.4 + 0.6 * load) * awake, t, 0.05); }   // 지게차: 엔진에 물린 유압 펌프 — 회전을 따라 오르는 윙
     if (V.clunk && thr > 0.3 && lastThr <= 0.3 && speed < 8) burst(V.clunk);   // 전동 지게차: 밟는 순간 접촉기 '턱'
   }
   const chime = () => { ding(1568, 0.18, 0.08, 0, 3.5, 0.5); ding(2093, 0.3, 0.08, 0.06, 3.5, 0.5); };
@@ -526,6 +549,9 @@ export function createAudio({ tuning = SOUND, tyre: tyreMode = 'b3', car = null 
       const hz = rpm / 60 / V.revs, w = clamp01((rpm - V.blend[0]) / V.blend[1]), lowW = Math.cos(w * Math.PI / 2), highW = Math.sin(w * Math.PI / 2), on = Math.sqrt(load), off = Math.sqrt(1 - load) * V.off, r = rpm / V.redline;
       // 전기 · 굴러가는 소리는 서 있으면 조용하고 속도만큼 커진다(엔진은 1 — 곱해도 그대로)
       const moving = V.still ? V.still[0] + (1 - V.still[0]) * Math.pow(clamp01(speed / V.still[1]), 0.7) : 1;
+      const want = view.menu ? 0 : 1;
+      if (awake === null) awake = want;
+      else { awake += (want - awake) * (1 - Math.exp(-dt / MENU_FADE)); if (Math.abs(want - awake) < 1e-3) awake = want; }
       for (const layer of eng.layers) {
         layer.src.playbackRate.setTargetAtTime(hz / layer.f0 * (1 + wob), t, 0.012);
         layer.g.gain.setTargetAtTime((layer.name.startsWith('low') ? lowW : highW) * (layer.name.endsWith('On') ? on : off), t, 0.02);
@@ -533,8 +559,8 @@ export function createAudio({ tuning = SOUND, tyre: tyreMode = 'b3', car = null 
       eng.drive.gain.setTargetAtTime(V.drive[0] + V.drive[1] * load, t, 0.03);
       eng.lp.frequency.setTargetAtTime(V.lp[0] + load * V.lp[1] + rpm * V.lp[2], t, 0.04);
       eng.screamG.gain.setTargetAtTime(V.scream[2] + V.scream[3] * load * r, t, 0.04);
-      eng.gain.gain.setTargetAtTime(tuning.engine * V.gain * (V.load[0] + V.load[1] * load) * (0.75 + 0.25 * r) * (boosting ? 1.15 : 1) * moving, t, 0.03);
-      eng.intake.gain.gain.setTargetAtTime(load * r * V.intake[2], t, 0.05);
+      eng.gain.gain.setTargetAtTime(tuning.engine * V.gain * (V.load[0] + V.load[1] * load) * (0.75 + 0.25 * r) * (boosting ? 1.15 : 1) * moving * awake, t, 0.03);
+      eng.intake.gain.gain.setTargetAtTime(load * r * V.intake[2] * awake, t, 0.05);
       // 떼고 높은 회전에서 내려올 때 '타닥타닥'
       if (V.pops && load < 0.25 && rpm > V.pops.min && rnd() < dt * V.pops.rate * clamp01((rpm - V.pops.min) / V.pops.span + 0.3)) pop(0.8);
       voiceExtras(t, dt, speed, thr, r, moving);

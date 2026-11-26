@@ -53,6 +53,19 @@ Campus Racing © 2026 HealthCoding. HealthCoding 이 직접 만든 부분의 이
 - 저작권 표시: Copyright 2020 The Saira Project Authors
 - 출처: https://github.com/Omnibus-Type/Saira
 
+### 카카오 JavaScript SDK 2.8.5
+
+- 쓰는 곳: 공유 판의 카카오톡 단추(키가 있을 때만 보인다). **그 단추를 누를 때만** 카카오 CDN(`https://t1.kakaocdn.net/kakao_js_sdk/2.8.5/kakao.min.js`)에서 불러온다 — 이 저장소 · 배포 묶음에는 들어 있지 않다. 주소 · integrity 는 `src/hud/share-send.js`.
+- 누르면 카톡용 그림(800×400 — 기록 · 코스 · 차 · 주소, 닉네임 없음)을 카카오 서버에 올린다. 카카오는 올린 그림을 최대 100일 보관한다.
+- 저작권: © Kakao Corp. 이용 조건: 카카오디벨로퍼스 이용약관 https://developers.kakao.com/terms/ko/site-terms
+- 운영정책: https://developers.kakao.com/terms/ko/site-policies
+
+### 카카오톡 공유 아이콘
+
+- 쓰는 곳: 공유 판의 카카오톡 단추 아이콘(`assets/kakao/kakaotalk_sharing_btn_medium.png`). 카카오디벨로퍼스 '리소스 다운로드'에서 받은 그림을 고치지 않고 그대로 쓴다. 공식 사이트의 묶음에만 있고, 공개 저장소에는 이 그림과 카카오 키를 싣지 않는다.
+- 카카오의 그림이고 카카오톡은 카카오의 상표다. `LICENSE` 의 조건은 이 그림에 적용되지 않는다 — 카카오의 이용 조건(운영정책 제3장 상표 사용 가이드)을 따른다.
+- 출처: https://developers.kakao.com/tool/resource/talk
+
 ## 2. 같은 만든 이의 자료 — Beat the School
 
 - 쓰는 곳: 연세대 신촌 캠퍼스의 3D 건물 · 병원 · 바닥 · 지형과 캠퍼스 코드(`bts/src/` · `bts/assets/`)
@@ -74,4 +87,5 @@ Campus Racing © 2026 HealthCoding. HealthCoding 이 직접 만든 부분의 이
 ## 4. 배포에 들지 않는 것
 
 - 한글 글꼴: 화면이 'Pretendard' 를 먼저 부르지만 글꼴 파일은 배포하지 않는다(보는 사람의 기기에 있으면 쓰고, 없으면 기기 기본 글꼴).
+- 카카오 JavaScript SDK: 묶음에 없다(카카오톡 단추를 누를 때 카카오 CDN 에서 받는다 — 위 1절).
 - 원본 지도 스냅샷, 개발용 화면 · 시험 · 도구는 배포하지 않는다.

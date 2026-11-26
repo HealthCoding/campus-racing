@@ -52,7 +52,7 @@ a{color:var(--link)}
 <h4>4. Beat the School 자료</h4>
 <p>bts/ 의 연세대 캠퍼스 자료(3D 건물 · 병원 · 바닥 · 지형과 캠퍼스 코드)는 같은 만든 이의 게임 Beat the School 에서 가져왔고, Beat the School 의 이용 조건을 따릅니다(이 글과 같은 비상업 짜임). 그 안의 지도 좌표 부분은 3 을, bts/vendor/ 는 5 를 따릅니다.</p>
 <h4>5. 제3자 부품</h4>
-<p>three.js 와 애드온(three.js 코어 안의 Mapbox Earcut 이식 포함), meshoptimizer, 글꼴 Saira 등 제3자 부품은 각자의 라이선스를 따릅니다. 목록과 저작권 표시는 NOTICE 에 있습니다. 이 글은 그 라이선스들이 주는 권리를 줄이지 않습니다.</p>
+<p>three.js 와 애드온(three.js 코어 안의 Mapbox Earcut 이식 포함), meshoptimizer, 글꼴 Saira, 카카오 JavaScript SDK 와 카카오톡 공유 아이콘 등 제3자 부품은 각자의 라이선스 · 이용 조건을 따릅니다. 목록과 저작권 표시는 NOTICE 에 있습니다. 이 글은 그 라이선스들이 주는 권리를 줄이지 않습니다.</p>
 <h4>6. 더 허락하는 것</h4>
 <p>게임을 하는 화면 · 영상 · 방송 · 후기는 광고 · 후원 등으로 수익이 나도 자유롭게 올릴 수 있습니다.</p>
 <h4>7. 출처 표시</h4>
@@ -74,7 +74,7 @@ a{color:var(--link)}
 <h4>4. Beat the School</h4>
 <p>The Yonsei campus material in bts/ (3D buildings, hospitals, ground, terrain and campus code) comes from Beat the School, another game by the same maker, and follows the Beat the School terms (the same non-commercial structure as this one). Map coordinates in it fall under 3, and bts/vendor/ falls under 5.</p>
 <h4>5. Third-party parts</h4>
-<p>three.js and its add-ons (including the Mapbox Earcut port inside the three.js core), meshoptimizer, the Saira font and other third-party components are governed by their own licenses. See NOTICE for the list and notices. Nothing here limits the rights those licenses give you.</p>
+<p>three.js and its add-ons (including the Mapbox Earcut port inside the three.js core), meshoptimizer, the Saira font, the Kakao JavaScript SDK, the KakaoTalk sharing icon and other third-party components are governed by their own licenses and terms. See NOTICE for the list and notices. Nothing here limits the rights those licenses give you.</p>
 <h4>6. Extra permission</h4>
 <p>You may post screenshots, videos, streams and reviews of your play freely, including ones that earn money from ads, sponsorships or donations.</p>
 <h4>7. Credit</h4>
@@ -96,13 +96,17 @@ a{color:var(--link)}
 <ul><li>쓰는 곳: 압축된 3D 파일 풀기(<code>bts/vendor/model-assets/meshopt_decoder.module.js</code> — WebAssembly 가 파일 안에 들어 있다)</li><li>라이선스: MIT — 전문 <code>src/vendor/meshoptimizer-LICENSE.txt</code></li><li>저작권 표시: Copyright (C) 2016-2022, by Arseny Kapoulkine</li><li>출처: <a href="https://github.com/zeux/meshoptimizer" rel="noopener" target="_blank">https://github.com/zeux/meshoptimizer</a> (파일 머리말 &quot;Built from meshoptimizer 0.18&quot;)</li></ul>
 <h5>글꼴 Saira</h5>
 <ul><li>쓰는 곳: 화면 · 공유 카드의 숫자 · 영문(<code>src/hud/fonts/Saira-latin.woff2</code> · <code>Saira-Italic-latin.woff2</code>)</li><li>라이선스: SIL Open Font License 1.1 — 전문 <code>src/hud/fonts/OFL.txt</code></li><li>저작권 표시: Copyright 2020 The Saira Project Authors</li><li>출처: <a href="https://github.com/Omnibus-Type/Saira" rel="noopener" target="_blank">https://github.com/Omnibus-Type/Saira</a></li></ul>
+<h5>카카오 JavaScript SDK 2.8.5</h5>
+<ul><li>쓰는 곳: 공유 판의 카카오톡 단추(키가 있을 때만 보인다). <strong>그 단추를 누를 때만</strong> 카카오 CDN(<code><a href="https://t1.kakaocdn.net/kakao_js_sdk/2.8.5/kakao.min.js" rel="noopener" target="_blank">https://t1.kakaocdn.net/kakao_js_sdk/2.8.5/kakao.min.js</a></code>)에서 불러온다 — 이 저장소 · 배포 묶음에는 들어 있지 않다. 주소 · integrity 는 <code>src/hud/share-send.js</code>.</li><li>누르면 카톡용 그림(800×400 — 기록 · 코스 · 차 · 주소, 닉네임 없음)을 카카오 서버에 올린다. 카카오는 올린 그림을 최대 100일 보관한다.</li><li>저작권: © Kakao Corp. 이용 조건: 카카오디벨로퍼스 이용약관 <a href="https://developers.kakao.com/terms/ko/site-terms" rel="noopener" target="_blank">https://developers.kakao.com/terms/ko/site-terms</a></li><li>운영정책: <a href="https://developers.kakao.com/terms/ko/site-policies" rel="noopener" target="_blank">https://developers.kakao.com/terms/ko/site-policies</a></li></ul>
+<h5>카카오톡 공유 아이콘</h5>
+<ul><li>쓰는 곳: 공유 판의 카카오톡 단추 아이콘(<code>assets/kakao/kakaotalk_sharing_btn_medium.png</code>). 카카오디벨로퍼스 &#39;리소스 다운로드&#39;에서 받은 그림을 고치지 않고 그대로 쓴다. 공식 사이트의 묶음에만 있고, 공개 저장소에는 이 그림과 카카오 키를 싣지 않는다.</li><li>카카오의 그림이고 카카오톡은 카카오의 상표다. <code>LICENSE</code> 의 조건은 이 그림에 적용되지 않는다 — 카카오의 이용 조건(운영정책 제3장 상표 사용 가이드)을 따른다.</li><li>출처: <a href="https://developers.kakao.com/tool/resource/talk" rel="noopener" target="_blank">https://developers.kakao.com/tool/resource/talk</a></li></ul>
 <h4>2. 같은 만든 이의 자료 — Beat the School</h4>
 <ul><li>쓰는 곳: 연세대 신촌 캠퍼스의 3D 건물 · 병원 · 바닥 · 지형과 캠퍼스 코드(<code>bts/src/</code> · <code>bts/assets/</code>)</li><li>만든 이: HealthCoding(Beat the School). Beat the School 의 이용 조건을 따른다(<code>LICENSE</code> 와 같은 비상업 짜임 — 코드 PolyForm Noncommercial 1.0.0 · 3D · 그림 · 소리 CC BY-NC 4.0).</li><li><code>bts/vendor/</code> 는 여기에 들지 않는다 — 위 1절의 three.js · 애드온 · meshoptimizer 다.</li><li><code>bts/src/</code> 의 캠퍼스 자료 안에 든 지도 부분은 위 OpenStreetMap 조건(ODbL 1.0)을 따른다.</li><li>건물 모델은 사진을 보고 만들었고, 치수는 측량이 아니라 추정이다.</li><li>신촌 지형의 높낮이는 측량 · DEM 자료가 아니라 사진과 주변 모습으로 추정한 값이다.</li></ul>
 <h4>3. HealthCoding 이 만든 것</h4>
 <p>제3자 자료가 아니다 — 이용 조건은 <code>LICENSE</code>(코드는 PolyForm Noncommercial 1.0.0, 3D · 그림 · 소리 · 음악은 CC BY-NC 4.0).</p>
 <ul><li>차량 3D 모델과 독수리상 모델(<code>assets/vehicles/*.glb</code> · <code>eagle_statue.glb</code>) — 파이썬 스크립트로 Blender 에서 지었다. 배포되는 파일의 glTF <code>asset.copyright</code> 에 &#39;© 2026 HealthCoding · Campus Racing&#39; 이 들어 있다.</li><li>소리(엔진 · 타이어 · 부스터 등) — 소리 파일 없이 Web Audio 로 합성한다(<code>src/audio.js</code>).</li><li>배경음악 &#39;네온 질주&#39; — 새로 쓴 곡을 합성 악기로 직접 연주한다. 음원 · 샘플 파일은 없다(<code>src/music.js</code> · <code>src/music/neon.js</code>).</li><li>화면 · 아이콘 · 공유 그림(<code>assets/icon/</code> · <code>assets/og.jpg</code>). <code>og.jpg</code> 는 게임 화면이라 캠퍼스 모습(Beat the School · 지도 자료)이 담겨 있다.</li></ul>
 <h4>4. 배포에 들지 않는 것</h4>
-<ul><li>한글 글꼴: 화면이 &#39;Pretendard&#39; 를 먼저 부르지만 글꼴 파일은 배포하지 않는다(보는 사람의 기기에 있으면 쓰고, 없으면 기기 기본 글꼴).</li><li>원본 지도 스냅샷, 개발용 화면 · 시험 · 도구는 배포하지 않는다.</li></ul></div>
+<ul><li>한글 글꼴: 화면이 &#39;Pretendard&#39; 를 먼저 부르지만 글꼴 파일은 배포하지 않는다(보는 사람의 기기에 있으면 쓰고, 없으면 기기 기본 글꼴).</li><li>카카오 JavaScript SDK: 묶음에 없다(카카오톡 단추를 누를 때 카카오 CDN 에서 받는다 — 위 1절).</li><li>원본 지도 스냅샷, 개발용 화면 · 시험 · 도구는 배포하지 않는다.</li></ul></div>
 </main>
 </body>
 </html>

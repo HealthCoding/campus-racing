@@ -1,8 +1,12 @@
 // 공유 포토카드(2026-11-24 사용자 결정 — "셋다 넣고 옆으로 넘겨 고르는거 굿, 추천대로 진행"). 시안: 시안/공유카드_시안.html(그리기 drawA · drawB · drawC 와 판).
-//   결과 화면의 '공유'를 누를 때 hud.js 의 openShare() 가 불러온다(첫 방문에 받는 양을 늘리지 않게). 새 그림 파일 없이 무늬는 다 그린다. 서버에 아무것도 보내지 않는다.
+//   결과 화면의 '공유'를 누를 때 hud.js 의 openShare() 가 불러온다(첫 방문에 받는 양을 늘리지 않게). 새 그림 파일 없이 무늬는 다 그린다.
+//   밖으로 나가는 것: 판을 여는 것만으로는 아무 요청도 없다. **카카오톡 단추를 누를 때만** 카카오 SDK 를 받고 카톡용 가로 그림(800×400 · 닉네임 없음)을 카카오에 올린다(share-send.js).
+//     Instagram 단추는 Instagram 앱(휴대폰) · 메시지함 새 탭(PC)을 열 뿐 우리가 보내는 것은 없다. 공유 단추는 기기의 공유 창에 그림을 넘긴다.
 //   카드 셋: A 포토카드(1100 × 1700 — 쇼룸의 내 차) · B 레이스 기록지(1080 × 1350 — 결과 순간의 장면 띠 · 바퀴별 기록) · C 스토리(1080 × 1920 — 결과 순간의 장면).
 //   판: 카드를 옆으로 넘겨 고른다(휴대폰은 밀기, PC 는 ◀ ▶ · 방향키, 점을 눌러도 된다). 처음은 A, 마지막에 고른 것을 브라우저에 남긴다(없어도 A).
-//   단추: 공유(navigator.canShare({ files }) 가 참일 때만 — 터치 기기에서 첫 단추 · 노랑) · 이미지 저장(PC 의 첫 단추) · 링크 복사('복사했어요') · 닫기(Esc).
+//   단추(2026-11-26 사용자가 시안/공유단추_고르기.html 에서 고른 '가 두 줄' — 노랑으로 채운 첫 단추는 없다, 카카오 아이콘이 노랑을 맡는다):
+//     윗줄 보낼 곳 = 카카오톡(src/shared/kakao-key.js 의 키가 있을 때만) · Instagram(늘) · 공유(navigator.canShare({ files }) 가 참일 때만)
+//     아랫줄 = 이미지 저장 · 링크 복사('복사했어요') · 닫기(Esc). PC · 휴대폰 가로는 세로 한 줄(사이를 띄움), 휴대폰 세로는 두 줄.
 //   보내는 그림은 JPEG(0.9 — 시안에서 잰 PNG 0.65 ~ 2.0 MB 가 JPEG 로 160 ~ 190 KB. 카톡은 어차피 다시 줄인다). 둥근 모서리 바깥은 어두운 바탕으로 채운다.
 //   주소 = 지금 페이지(location.origin + pathname — 질의 문자열 없이). 기록은 주소에 싣지 않는다.
 //   단, 공식 주소(src/shared/official.js)도 로컬 개발 주소도 아닌 곳(옮겨 올린 사본 등)에서 열리면 카드 · 링크 · 공유 시트는 공식 주소를 쓴다(2026-11-25).
@@ -15,6 +19,7 @@
 //   scene: Promise<캔버스> | 캔버스 | null(결과 순간의 장면 — B · C)   showroom: () => Promise<캔버스> | 캔버스(쇼룸의 내 차 — A)
 import { lapText } from './hud.js';
 import { shareLocation } from '../shared/official.js';
+import { KAKAO_IMAGE, kakaoOn, sendList, KEEP, kakaoTemplate, kakaoClient, uploadKakao, instaDmUrl, isAndroid, INSTA_INBOX, instaWay } from './share-send.js';
 
 export const SIZES = { a: [1100, 1700], b: [1080, 1350], c: [1080, 1920] };
 export const ORDER = ['a', 'b', 'c'];
@@ -239,12 +244,42 @@ export function drawCard(canvas, v, d, photos = {}) {
   return canvas;
 }
 
+// ---- 카톡용 가로 그림 800×400(2026-11-26 사용자가 고른 '다' — 시안/img/공유단추/pick-kakao-c.png): 왼쪽 이름 · 모드 줄 · 큰 기록 · 순위 줄 · 주소, 오른쪽 쇼룸의 내 차(카드 A 의 사진).
+//   닉네임 · 날짜는 넣지 않는다(카카오에 올린 그림 주소는 100일 동안 누구나 열 수 있다). 사진이 없으면 카드 A 처럼 어두운 바탕 그대로.
+function drawK(ctx, d, photo) {
+  const [W, H] = KAKAO_IMAGE, X = 34, PX = 300;
+  ctx.fillStyle = '#0b0c11'; ctx.fillRect(0, 0, W, H);
+  cover(ctx, photo, PX, 0, W - PX, H, .5, .55);
+  const g = ctx.createLinearGradient(PX, 0, PX + 170, 0); g.addColorStop(0, '#0b0c11'); g.addColorStop(1, 'rgba(11,12,17,0)'); ctx.fillStyle = g; ctx.fillRect(PX, 0, 170, H);
+  mark(ctx, X, 60, 30); kerb(ctx, X + 2, 72, 198, 8, 9);
+  setFont(ctx, '700 17px Saira', 'semi-expanded'); spacing(ctx, '4px'); ctx.fillStyle = '#ffd84a'; ctx.fillText(modeLine(d), X, 180); spacing(ctx, '0px');
+  fitSize(ctx, d.time, 'Saira', 'italic 800', 104, 330); ctx.fillStyle = '#fff'; ctx.fillText(d.time, X - 4, 280);
+  rankRow(ctx, d, X, 298, 42);
+  /* 출처 줄이 두 줄로 넘어가면(글꼴이 넓은 기기) 주소와 함께 한 칸 올린다 — 아래 끝 400 안 */
+  setFont(ctx, '600 12px Saira, ' + KOR, 'normal'); spacing(ctx, '1px'); const one = ctx.measureText(CARD_CREDIT).width <= 440; spacing(ctx, '0px');
+  setFont(ctx, '600 15px Saira', 'normal'); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillText(d.site, X, one ? 366 : 354);
+  creditLine(ctx, X, one ? 388 : 374, 12, 'rgba(255,255,255,.42)', 'left', 440);
+}
+// 카톡용 그림을 캔버스에(카드 셋과 같은 글 · 사진 — d 는 cardInfo(), photos 는 { showroom, scene })
+export function drawKakao(canvas, d, photos = {}) {
+  const [w, h] = KAKAO_IMAGE; canvas.width = w; canvas.height = h;
+  drawK(canvas.getContext('2d'), d, photos.showroom || photos.scene);
+  return canvas;
+}
+
 // ================================================================ 공유 판
 const ICON = {
   share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 12v9h14v-9"/></svg>',
   save: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 17v4h16v-4"/></svg>',
   link: '<svg viewBox="0 0 24 24" aria-hidden="true" class="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+  // Instagram 단추: 우리가 그린 종이비행기(보내기) — Instagram 로고 · 글리프가 아니다
+  send: '<svg viewBox="0 0 24 24" aria-hidden="true" class="round"><path d="M21.5 2.5 2.5 10l7.5 3.2 3.3 8.3z"/><path d="M21.5 2.5 10 13.2"/></svg>',
 };
+// 카카오톡 공유 아이콘: 카카오가 주는 그림 그대로(고치지 않는다 — NOTICE.md 1절)
+const KAKAO_ICON = new URL('../../assets/kakao/kakaotalk_sharing_btn_medium.png', import.meta.url).href;
+export const LABEL = { kakao: '카카오톡', insta: 'Instagram', share: '공유', save: '이미지 저장', copy: '링크 복사' };
+const KAKAO_STATE = { idle: LABEL.kakao, busy: '올리는 중', ready: '보내기' };
+const ACT_ICON = { kakao: '<img class="ki" src="' + KAKAO_ICON + '" alt="">', insta: ICON.send, share: ICON.share, save: ICON.save, copy: ICON.link };
 const touchy = () => document.body.classList.contains('touch') || !!globalThis.matchMedia?.('(pointer: coarse)').matches;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const within = (value, ms) => Promise.race([Promise.resolve(value).catch(() => null), sleep(ms).then(() => null)]);
@@ -305,12 +340,12 @@ function fit() {
   const bw = els.stage.clientWidth, bh = els.stage.clientHeight;
   els.cards.forEach(card => { const [w, h] = SIZES[card.dataset.v], s = fitBox(w, h, bw, bh); card.style.width = s.w + 'px'; card.style.height = s.h + 'px'; });
 }
+// 단추 두 줄(2026-11-26 '가'): 윗줄 보낼 곳(.send) · 아랫줄 이미지 저장 · 링크 복사(.keep — 낮은 테두리 단추). data-send = 윗줄 수(1 ~ 3 — 휴대폰 세로에서 빠진 자리 없이 나눈다)
 function buttons() {
-  const share = canShareFiles(), touch = touchy();
-  const list = touch ? [...(share ? ['share'] : []), 'save', 'copy'] : ['save', 'copy', ...(share ? ['share'] : [])];
-  const label = { share: '공유', save: '이미지 저장', copy: '링크 복사' }, icon = { share: ICON.share, save: ICON.save, copy: ICON.link };
-  els.acts.innerHTML = list.map((k, i) => '<button type="button" data-act="' + k + '"' + (i === 0 ? ' class="main"' : '') + '>' + icon[k] + '<span>' + label[k] + '</span></button>').join('');
-  els.acts.dataset.count = String(list.length);
+  const send = sendList({ kakao: kakaoOn(), share: canShareFiles() });
+  const one = (k, cls) => '<button type="button" class="' + cls + '" data-act="' + k + '">' + ACT_ICON[k] + '<span>' + LABEL[k] + '</span></button>';
+  els.acts.innerHTML = send.map(k => one(k, 'send')).join('') + '<i class="sh-sep" aria-hidden="true"></i>' + KEEP.map(k => one(k, 'keep')).join('');
+  els.acts.dataset.count = String(send.length + KEEP.length); els.acts.dataset.send = String(send.length);
   els.acts.querySelectorAll('button').forEach(b => b.addEventListener('click', () => act(b.dataset.act)));
 }
 function toast(text, input = null) {
@@ -324,7 +359,7 @@ function toast(text, input = null) {
 function drawAll() {
   if (!now) return;
   const d = cardInfo(now.data), photos = { scene: now.scene, showroom: now.showroom };
-  now.info = d; now.blobs = {}; now.rev++;
+  now.info = d; now.blobs = {}; now.rev++; now.kakao = freshKakao(); kakaoLook('idle');
   els.cards.forEach(card => drawCard(card.querySelector('canvas'), card.dataset.v, d, photos));
   layer.dataset.link = linkText(d); layer.dataset.rank = d.rank ?? d.place ?? '';
   encode(ORDER[now.index]);
@@ -343,31 +378,103 @@ async function act(what) {
   if (!now || layer.dataset.ready !== 'true') return;
   const v = ORDER[now.index], d = now.info, name = fileName(d, v);
   if (what === 'copy') return copy(linkText(d));
-  if (what === 'save') {
-    const blob = await blobOf(v); if (!blob) return;
-    const a = document.createElement('a'), href = URL.createObjectURL(blob); a.href = href; a.download = name; layer.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(href), 30000);
-    toast('저장했어요'); return;
-  }
+  if (what === 'save') { if (await save(v, name)) toast('저장했어요'); return; }
   if (what === 'share') {
     // 미리 만든 그림이 있으면 기다리지 않고 바로 부른다(누른 그 틱 — 사용자 동작 안)
     const ready = now.blobs[v], run = blob => shareFile(blob, name, d);
     if (ready instanceof Blob) return run(ready);
     return run(await blobOf(v));
   }
+  if (what === 'kakao') return kakao();
+  if (what === 'insta') return insta(v, d, name);
+}
+async function save(v, name) {
+  const blob = await blobOf(v); if (!blob) return false;
+  const a = document.createElement('a'), href = URL.createObjectURL(blob); a.href = href; a.download = name; layer.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(href), 30000);
+  return true;
 }
 async function shareFile(blob, name, d) {
   try { await navigator.share({ files: [new File([blob], name, { type: 'image/jpeg' })], text: linkText(d) }); }
   catch (error) {
-    if (error?.name === 'AbortError') return;   // 공유 시트에서 취소 — 조용히
+    /* 공유 시트에서 취소 — 조용히 */
+    if (error?.name === 'AbortError') return;
     try { await navigator.share({ text: headline(d), url: d.url }); } catch (e) { if (e?.name !== 'AbortError') console.warn('공유하지 못함', e); }
   }
 }
-async function copy(text) {
-  try { await navigator.clipboard.writeText(text); toast('복사했어요'); return; } catch {}
-  // 클립보드가 막힌 곳(오래된 웹뷰): 숨은 글 칸으로 한 번 더, 그것도 안 되면 글을 골라 둔 칸을 보인다
+// 클립보드에 글 넣기 → Promise<참 · 거짓>. 부르는 그 틱에 writeText 를 시작한다(기다리지 않아도 된다 — 사파리는 사용자 동작 안에서 불러야 받는다)
+function clip(text) {
+  try { if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text).then(() => true, () => legacyCopy(text)); } catch {}
+  return Promise.resolve(legacyCopy(text));
+}
+// 클립보드 API 가 막힌 곳(오래된 웹뷰): 숨은 글 칸으로 한 번 더
+function legacyCopy(text) {
+  if (!layer) return false;
   const area = document.createElement('textarea'); area.value = text; area.setAttribute('readonly', ''); area.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
   layer.append(area); area.select(); let ok = false; try { ok = document.execCommand('copy'); } catch {} area.remove();
-  if (ok) { toast('복사했어요'); layer.focus({ preventScroll: true }); } else toast('', text);
+  if (ok) layer.focus({ preventScroll: true });
+  return ok;
+}
+// 그것도 안 되면 글을 골라 둔 칸을 보인다
+async function copy(text) { if (await clip(text)) toast('복사했어요'); else if (isOpen()) toast('', text); }
+
+// ---- 카카오톡(키가 있을 때만 단추가 있다): 누름 → SDK 불러옴 · init → 카톡용 그림 800×400 을 올림 → 받은 주소로 sendDefault(feed)
+//   올리기를 기다린 뒤에는 휴대폰 브라우저가 카카오톡 열기를 막을 수 있다 — 끝났을 때 사용자 동작이 살아 있으면(navigator.userActivation.isActive) 바로 보내고,
+//   아니면(그 API 가 없어도) 단추를 '보내기'로 바꿔 한 번 더 누르게 한다(그때는 누른 그 틱에 보낸다). 올리는 동안('올리는 중')은 다시 눌러도 겹쳐 돌지 않는다.
+//   같은 기록(now.rev)이면 올린 주소를 다시 쓴다 — 순위가 채워져 다시 그리면(drawAll) 버린다. 실패는 던지지 않고 알림 한 줄 + console.warn.
+const freshKakao = () => ({ state: 'idle', url: null, client: null });
+function kakaoLook(state) {
+  const b = els.acts.querySelector('[data-act=kakao]'); if (!b) return;
+  b.dataset.state = state; b.setAttribute('aria-busy', String(state === 'busy')); b.querySelector('span').textContent = KAKAO_STATE[state];
+}
+async function kakao() {
+  const k = now.kakao;
+  if (k.state === 'busy') return;
+  if (k.url) return kakaoSend(k);
+  const my = now, rev = now.rev;
+  k.state = 'busy'; kakaoLook('busy');
+  try {
+    const client = await kakaoClient();
+    const canvas = drawKakao(document.createElement('canvas'), my.info, { showroom: my.showroom, scene: my.scene });
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9)); if (!blob) throw new Error('카톡용 그림을 못 만듦');
+    const url = await uploadKakao(client, blob, 'campus-racing-' + my.info.courseId + '-kakao.jpg');
+    /* 판이 닫혔거나 순위가 채워져 다시 그렸으면 버린다 */
+    if (now !== my || now.kakao !== k || now.rev !== rev) return;
+    k.url = url; k.client = client;
+    if (navigator.userActivation?.isActive) kakaoSend(k); else { k.state = 'ready'; kakaoLook('ready'); }
+  } catch (error) {
+    if (now !== my || now.kakao !== k) return;
+    console.warn('카카오톡으로 못 보냄', error);
+    k.state = 'idle'; kakaoLook('idle'); toast('카카오톡으로 못 보냈어요');
+  }
+}
+function kakaoSend(k) {
+  try { k.client.Share.sendDefault(kakaoTemplate(now.info, k.url, headline)); }
+  catch (error) { console.warn('카카오톡으로 못 보냄', error); toast('카카오톡으로 못 보냈어요'); }
+  k.state = 'idle'; kakaoLook('idle');
+}
+
+// ---- Instagram(2026-11-26 사용자 "인스타그램은 디엠 창 바로 열기가 좋을 것 같아") — 카드 그림은 안 간다(그림은 '공유' 단추가 맡는다)
+//   휴대폰(터치): 누른 그 틱에 ① 문구(문구 + 줄바꿈 + 주소)를 클립보드에(앱이 글을 안 채울 때 붙여 넣게 — 기다리지 않음) ② Instagram 앱의 '보낼 사람 고르기' 창.
+//     ※ instagram://sharesheet 는 문서에 없는 비공식 길(share-send.js). 1.5초 뒤에도 이 페이지가 그대로 보이면(앱이 안 열림) 알림 한 줄. 페이지는 떠나지 않는다(숨은 링크 클릭 — 게임 그대로).
+//   PC: ① 문구 복사(새 탭이 초점을 가져가기 전에 — 크롬은 초점 없는 문서의 클립보드 쓰기를 막는다) ② Instagram 메시지함 새 탭(누른 그 틱) ③ 지금 카드 이미지 저장. 새 탭이 막혀도 ② ③ 은 한다.
+const APP_WAIT = 1500;
+async function insta(v, d, name) {
+  const text = linkText(d), copied = clip(text);
+  if (instaWay({ touch: touchy() }) === 'app') { openApp(instaDmUrl(text, isAndroid())); return; }
+  try { window.open(INSTA_INBOX, '_blank', 'noopener'); } catch (error) { console.warn('새 탭을 못 엶', error); }
+  const saved = await save(v, name), ok = await copied;
+  if (!isOpen()) return;
+  if (ok) toast(saved ? '이미지 저장 · 문구 복사했어요' : '문구 복사했어요'); else toast('', text);
+}
+function openApp(url) {
+  let left = false; const gone = () => { left = true; };
+  const events = [[document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') gone(); }], [window, 'pagehide', gone], [window, 'blur', gone]];
+  events.forEach(([target, type, fn]) => target.addEventListener(type, fn));
+  try { const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; layer.append(a); a.click(); a.remove(); } catch (error) { console.warn('Instagram 앱을 못 엶', error); }
+  setTimeout(() => {
+    events.forEach(([target, type, fn]) => target.removeEventListener(type, fn));
+    if (!left && document.visibilityState === 'visible' && isOpen()) toast('Instagram 앱을 못 열었어요');
+  }, APP_WAIT);
 }
 
 // 키: 판이 열려 있는 동안 받은 키는 게임 · 결과 화면에 넘기지 않는다. Esc = 닫기, ← → = 카드 넘기기, Tab = 판 안에서만, Enter · Space = 초점이 있는 단추(없으면 아무것도 안 함)
@@ -391,7 +498,7 @@ export async function open(data = {}) {
   if (!layer) build();
   const my = ++gen, again = isOpen();
   if (!again) back = document.activeElement;
-  now = { data, index: ORDER.indexOf(remembered()), scene: null, showroom: null, info: null, blobs: {}, rev: 0 };
+  now = { data, index: ORDER.indexOf(remembered()), scene: null, showroom: null, info: null, blobs: {}, rev: 0, kakao: freshKakao() };
   layer.dataset.ready = 'false'; layer.hidden = false; buttons(); fit(); go(now.index);
   els.toast.dataset.on = 'false';
   if (!again) layer.focus({ preventScroll: true });

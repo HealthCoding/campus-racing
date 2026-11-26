@@ -38,7 +38,7 @@ const cameraFor = id => REAL_SIZES[id] ? cameraForCar(id, REAL_SIZES[id][0]) : n
 import { createHud, lapText, shareWith } from './hud/hud.js';
 import { blockZoom } from './hud/no-zoom.js';
 import { createGhostRecorder, createGhostPlayer, createGhostStores, pruneGhosts } from './ghost.js';
-import { createAudio } from './audio.js';
+import { createAudio, pauseWhenHidden } from './audio.js';
 import { createRace, RACE, RIVALS, LEVELS, DEFAULT_LEVEL } from './race/race.js';
 // 경주 한 틱의 계산(서버의 다시 계산과 같은 코드 — 2026-11-24 경주 랭킹)과 주행 지형(서버와 같은 자료 · 결정적 수학)
 import { newRace as newRaceRun, withRivalWorld, raceContext, placeRace, stepRace, snapshotRace, rivalCarOf, raceVersion, RACE_VER, applyRaceCap, damageScaleOf } from './race/race-run.js';
@@ -509,6 +509,8 @@ async function boot(query, picked, hud, game) {
     hud.pause({ onResume: resume, onAgain: () => { resume(); begin(0.55); }, onBack: () => { resume(); hud.lights(null); showReady(); } }); return true;
   }
   hud.onPause(pause);
+  // 탭이 뒤로 가면 소리 전체를 세우고 돌아오면 켠다(2026-11-26). 멈춤 판(Esc)이 열려 있으면 손대지 않는다 — 그때는 resume() 이 켠다. 규칙은 audio.js 의 pauseWhenHidden
+  if (audio) pauseWhenHidden({ audio, blocked: () => paused });
   // 경적(X — 2026-11-25 사용자 "X키 누르면 빵빵소리도 나게"): 주행 입력이 아니라 소리만. 달리는 중(멈춤 아님)에만 울리고, 시작 · 차 고르기 · 코스 고르기 · 초읽기 · 결과 화면에서는 안 난다.
   //   뗌은 input 이 알린다(키 뗌 · 창 떠남 · 화면 숨김). 멈춤 · 결과 화면으로 넘어가면 frame() 이 뗀다.
   input.onHorn(on => { if (!audio) return; if (on && game.phase === 'racing' && !paused) audio.horn(true); else if (!on) audio.horn(false); });
@@ -719,7 +721,8 @@ async function boot(query, picked, hud, game) {
         const o = pitCrew.update(c, dt); crewGuns = o.guns || 0; crewJack = o.event || ''; if (o.lift > 0) kart.group.position.y += o.lift;
       } catch (e) { console.error('피트 크루가 멈춤', e); try { stage.scene.remove(pitCrew.group); pitCrew.dispose(); } catch {} pitCrew = game.pitCrew = null; }
     }
-    audio?.update({ speed: attractOn ? 0 : pose.speed, throttle: live ? throttle : 0, slip: attractOn ? 0 : view.slip, drifting: s.drifting, boost: s.boost, boostKind, kickReady, stock, gauge: s.gauge, wallHit: hitThisFrame, crash: crashThisFrame, landed: landedThisFrame, grounded: view.grounded, wrench: crewGuns, jack: crewJack });
+    // menu: 시작 · 차 고르기 · 코스 고르기 · 결과 화면에서는 엔진 소리를 끈다(2026-11-26 사용자 — 시작 화면의 '우웅'은 서 있는 내 차의 공회전, 결과 화면의 것은 결승 뒤 천천히 굴러가는 내 차의 엔진이었다 → "그냥 안나게"). 초읽기부터 다시 차오른다
+    audio?.update({ menu: game.phase === 'ready' || game.phase === 'garage' || game.phase === 'course' || game.phase === 'finished', speed: attractOn ? 0 : pose.speed, throttle: live ? throttle : 0, slip: attractOn ? 0 : view.slip, drifting: s.drifting, boost: s.boost, boostKind, kickReady, stock, gauge: s.gauge, wallHit: hitThisFrame, crash: crashThisFrame, landed: landedThisFrame, grounded: view.grounded, wrench: crewGuns, jack: crewJack });
     // 화면에 그리는 자세의 시각은 '직전 틱 + acc' 다. 기록 표시와 유령도 같은 시각으로 맞춘다.
     let ghostAt = null;
     // 경주 · 타임어택 모두 출발 신호부터의 시간을 보여 준다(판이 끝나면 그 기록에서 멈춘다 — 타임어택은 3바퀴 합계). 유령도 출발 신호부터의 시각으로 맞춘다.
