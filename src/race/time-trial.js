@@ -16,8 +16,8 @@ import { KARTS } from '../kart/karts.js';
 import { courseOf } from '../track/courses.js';
 import { RANK_CLASS } from '../shared/rank-rules.js';
 
-export const TRIAL_VER = 4;           // 2: 3바퀴 합계 · 3: 결정적 수학과 지형 · 4(2026-11-26): 차마다 다른 조향과 드리프트
-export const RULES = 6;               // 기록 규칙 번호(유령 · 최고 기록 저장 이름 — main.js 가 쓴다. 올리면 옛 기록과 섞이지 않는다)
+export const TRIAL_VER = 5;           // 2: 3바퀴 합계 · 3: 결정적 수학과 지형 · 4(2026-11-26): 차마다 다른 조향과 드리프트 · 5(2026-11-26 밤): 게이지가 느리게 차던 네 차(포뮬러 · 슈퍼카 · 오토바이 · 마을버스)를 예전 빠르기로
+export const RULES = 6;               // (2026-11-26 밤 TRIAL_VER 5 때는 안 올렸다 — 바뀐 것이 네 차의 게이지 빠르기뿐이라 브라우저에 남은 최고 기록 · 유령을 지우지 않는다) 기록 규칙 번호(유령 · 최고 기록 저장 이름 — main.js 가 쓴다. 올리면 옛 기록과 섞이지 않는다)
 // 타임어택 한 판 = 출발 신호(틱 0 · 출발선 6 m 뒤에 서서)부터 TRIAL_LAPS 바퀴째 결승선까지(사용자 2026-11-24 "랭킹이 한바퀴 기준인데, 3바퀴로 하면 좋을듯").
 //   기록(ms) = 그 바퀴 사건의 at(출발 신호부터의 시각) — 바퀴별 시간은 앞 바퀴 끝(첫 바퀴는 출발 신호)부터. 서버는 틱 0 의 고정 출발 자리에서 전부 다시 달린다.
 export const TRIAL_LAPS = 3;

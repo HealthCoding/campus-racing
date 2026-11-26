@@ -6,6 +6,9 @@ export const FEEL_STRENGTH = 1;
 // 처음 꼬리가 벌어지는 시간과 차체 회전의 반응 시간(yawTime), 놓은 직후 접지가 돌아오는 시간(exitGrip)을 따로 맞춘다.
 // 버스는 전타 회전력을 유지하면서 역조향으로 미끄럼을 받아낼 때의 회전력(yawOut)을 따로 쓴다.
 // gripTime(일반 접지)과 slideGrip(드리프트 접지)은 단위와 방향이 다르므로 따로 둔다.
+// **게이지(gauge) 배율은 1 아래로 두지 않는다**(2026-11-26 밤 사용자: "전에 비해 부스터 차는 속도가 줄어든 것 같은데 … 체감이 많이 되는데?" → "다 그냥 예전처럼 부스트 빨리차게 바꾸면 좋겠는데").
+//   같은 날 오후의 첫 판은 세 바퀴 기록의 폭을 맞추려고 가속이 빠른 차의 게이지를 내렸다(포뮬러 0.49 · 슈퍼카 0.72 · 오토바이 0.46 · 마을버스 0.74) — 한 칸이 0.8초 → 1.0 ~ 1.6초로 느리게 찼다.
+//   그 넷의 배율을 없앴다(1 = 그 전의 빠르기: 한 칸 0.7 ~ 0.9초 — 검증/gauge-fill.mjs). 오후에 더 빨라진 차(1 초과)는 그대로다. 기록의 폭은 B 3.8 → 4.9 % · D 3.9 → 4.0 %(검증/car-feel-pace.mjs).
 function profile({
   steering = 1, release = steering, baseRadius = 1, fastRadius = 1, gripTime = 1,
   kick = 1, inertia = 1, yawTime = inertia, yaw = 1, yawOut = yaw, grip = 1, maxSlip = 1, recovery = 1, exitGrip = recovery,
@@ -30,7 +33,7 @@ export const CAR_FEEL = {
   formula_real: profile({
     steering: 1.23, release: 0.43, fastRadius: 0.78, gripTime: 0.9,
     kick: 0.97, inertia: 0.73, yaw: 0.92, grip: 1.31, maxSlip: 0.77, recovery: 0.7,
-    loss: 1.82, gauge: 0.49, accel: 1.229, top: 0.993, boostAccel: 0.66, boostTop: 0.983,
+    loss: 1.82, accel: 1.229, top: 0.993, boostAccel: 0.66, boostTop: 0.983,
   }),
   // 보통 승용차의 기준. 키를 잠시 누르면 완만하게 돌고 놓으면 단정하게 붙는다.
   sedan: profile({ kick: 0.95, yaw: 1.01, grip: 1.09, recovery: 0.96 }),
@@ -44,7 +47,7 @@ export const CAR_FEEL = {
   supercar_real: profile({
     steering: 0.9, gripTime: 0.91,
     kick: 0.95, inertia: 0.69, yaw: 1.19, grip: 0.79, maxSlip: 0.88, recovery: 1.1,
-    loss: 1.06, gauge: 0.72, accel: 1.046, top: 1.038, boostAccel: 0.82, boostTop: 1.03,
+    loss: 1.06, accel: 1.046, top: 1.038, boostAccel: 0.82, boostTop: 1.03,
   }),
   // 가볍고 폭이 좁은 골프 카트. 미끄럼이 쉽게 커지고 회복할 때 조금 출렁인다.
   golfcart_real: profile({
@@ -74,7 +77,7 @@ export const CAR_FEEL = {
   racebike_real: profile({
     steering: 0.62, baseRadius: 0.88, fastRadius: 0.9, gripTime: 0.82,
     kick: 0.99, inertia: 1.42, yaw: 1.24, grip: 1.47, maxSlip: 0.4, recovery: 0.99,
-    loss: 1.68, gauge: 0.46, accel: 1.3, top: 1.003, boostAccel: 0.68, boostTop: 0.997162,
+    loss: 1.68, accel: 1.3, top: 1.003, boostAccel: 0.68, boostTop: 0.997162,
   }),
   // 적재함 긴 트럭. 무거운 뒤가 천천히 흐르고 속도를 보존한다.
   truck_real: profile({
@@ -92,7 +95,7 @@ export const CAR_FEEL = {
   minibus_real: profile({
     steering: 1.535, release: 0.454, baseRadius: 1.165, fastRadius: 1.091, gripTime: 0.417,
     kick: 1.3323, inertia: 0.399, yawTime: 6.8778, yaw: 2.9652, yawOut: 5.66, grip: 1.3003, maxSlip: 0.717, recovery: 0.902, exitGrip: 5.032,
-    loss: 0.35, gauge: 0.74, accel: 0.791, boostAccel: 1.7, boostTop: 1.023, brake: 1.16,
+    loss: 0.35, accel: 0.791, boostAccel: 1.7, boostTop: 1.023, brake: 1.16,
   }),
   // 승객을 태운 택시. 세단보다 부드러운 조향과 회복, 조금 더 흐르는 뒷바퀴.
   taxi_real: profile({
