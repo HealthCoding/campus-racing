@@ -16,8 +16,8 @@ import { KARTS } from '../kart/karts.js';
 import { courseOf } from '../track/courses.js';
 import { RANK_CLASS } from '../shared/rank-rules.js';
 
-export const TRIAL_VER = 3;           // 2(2026-11-24): 기록이 '한 바퀴 최고'에서 '서서 출발한 3바퀴 합계'로 바뀌었다 — 새 판. 3(2026-11-24): 계산 경로의 초월 함수를 결정적 수학(src/shared/dmath.js)으로 · 주행 지형을 서버와 같은 자료(sim-terrain.js)로 — 값이 마지막 자리에서 바뀌어 새 판
-export const RULES = 5;               // 기록 규칙 번호(유령 · 최고 기록 저장 이름 — main.js 가 쓴다. 올리면 옛 기록과 섞이지 않는다)
+export const TRIAL_VER = 4;           // 2: 3바퀴 합계 · 3: 결정적 수학과 지형 · 4(2026-11-26): 차마다 다른 조향과 드리프트
+export const RULES = 6;               // 기록 규칙 번호(유령 · 최고 기록 저장 이름 — main.js 가 쓴다. 올리면 옛 기록과 섞이지 않는다)
 // 타임어택 한 판 = 출발 신호(틱 0 · 출발선 6 m 뒤에 서서)부터 TRIAL_LAPS 바퀴째 결승선까지(사용자 2026-11-24 "랭킹이 한바퀴 기준인데, 3바퀴로 하면 좋을듯").
 //   기록(ms) = 그 바퀴 사건의 at(출발 신호부터의 시각) — 바퀴별 시간은 앞 바퀴 끝(첫 바퀴는 출발 신호)부터. 서버는 틱 0 의 고정 출발 자리에서 전부 다시 달린다.
 export const TRIAL_LAPS = 3;
@@ -155,7 +155,7 @@ export function restoreTrial(T, snap, { tick = true, geometryOnly = false } = {}
 export { wrapAngle };
 
 // ---- 코스판: 코스 · 부품 · 피트 자료 + RULES + TRIAL_VER + TRIAL_LAPS + 순위에 쓰는 등급의 주행 값(카트 감각 넷) · 계산이 쓰는 규칙 값을 묶은 해시(16진 8자).
-//   차 목록(부딪힘 모양)은 넣지 않는다(2026-11-24): 넣어 두면 새 차를 더할 때마다 순위가 새 판이 된다. 이미 있는 차의 부딪힘 모양 · 감각을 고치면 TRIAL_VER 를 올린다 — 검증/car-bodies.test.mjs 가 알려 준다.
+//   차 목록(부딪힘 모양)은 넣지 않는다(2026-11-24): 넣어 두면 새 차를 더할 때마다 순위가 새 판이 된다. 이미 있는 차의 부딪힘 모양 · 기본 감각 · 차별 배율을 고치면 TRIAL_VER 를 올린다 — 검증/car-bodies.test.mjs 가 알려 준다.
 //   동기 함수이고 브라우저 · Node 에서 같은 값이다(JSON 글자 → FNV-1a 32비트). 코스마다 한 번만 센다.
 const versions = new Map();
 const fnv = text => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };

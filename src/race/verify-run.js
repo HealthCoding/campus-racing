@@ -11,7 +11,7 @@
 import { TRIAL_VER, TRIAL_LAPS, CHECK_EVERY, SNAP_FIELDS, SNAP_LEN, buildCourse, createTrial, placeTrial, stepTrial, snapshotTrial, restoreTrial, grantLimit, wrapAngle } from './time-trial.js';
 import { unpackDenseRun, decodeInput, INPUT_MAX, BIT, MAX_RUN_TICKS, MAX_RUN_MS } from './run-log.js';
 import { COURSES } from '../track/courses.js';
-import { SPEED_CLASSES, classParams } from '../kart/classes.js';
+import { SPEED_CLASSES, carParams } from '../kart/classes.js';
 import { CARS, footprintOf } from '../kart/karts.js';
 
 export const TOLERANCE = { pos: 1e-4, 'pos?': 1e-4, ang: 1e-5, vel: 1e-4, unit: 1e-5, yaw: 1e-5, gauge: 1e-4, time: 1e-9, 'time?': 1e-9 };
@@ -101,7 +101,7 @@ function shapeError(sub) {
   if (cps.length !== want) return fail('checkpoint', { count: cps.length, want });
   for (let i = 0; i < want; i++) { if (!snapShapeOk(cps[i])) return fail('shape', { checkpoint: i }); if (cps[i][0] !== fromTick + i * CHECK_EVERY) return fail('checkpoint', { at: i, tick: cps[i][0], want: fromTick + i * CHECK_EVERY }); }
   // 출발 가속: 출발 뒤 정해진 틱 안에서 한 번
-  const P0 = classParams(klass, { kart: carDef.kart }), limit = grantLimit(P0);
+  const P0 = carParams(carDef.id, klass), limit = grantLimit(P0);
   if (grants.length > 1) return fail('grant', { count: grants.length });
   if (grants.length && (!isInt(grants[0]) || grants[0] < 0 || grants[0] > limit)) return fail('grant', { tick: grants[0], limit });
 
@@ -118,7 +118,7 @@ export function verifyRun(sub, options = {}) {
 }
 
 function replay({ course, klass, car, run }, heightAt) {
-  const carDef = CARS.find(c => c.id === car), P0 = classParams(klass, { kart: carDef.kart });
+  const carDef = CARS.find(c => c.id === car), P0 = carParams(carDef.id, klass);
   const { ticks, inputs, cps, grants } = run;
   const B = courseFor(course, heightAt), T = createTrial(B, { params: P0, body: footprintOf(carDef) }), worst = {};
   // 고정 출발 자리 · 서 있는 상태(게임의 place 와 같은 값). 손님의 cps[0] 은 이것과 같아야 하고, 계산은 서버의 이 상태에서 시작한다.

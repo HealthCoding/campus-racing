@@ -32,20 +32,48 @@ export const TWO_WHEEL = {
     hang: { shift: 0.06, drop: 0.035, roll: 0.18, knee: 0.45, legAxis: [0.149, -0.985, -0.089] } },
 };
 const GRAVITY = 9.81;
+// 차체의 쏠림 · 끄덕임을 차마다 다르게(2026-11-26 사용자 "차 크기랑 종류별로 다른데도 … 크게 다르지 않고" — 보이는 모양만이다, 주행 계산은 그대로).
+//   키가 크고 무거울수록 크게 · 느리게 기운다(마을버스 · 청소차 1.8배 · 0.132초), 낮은 스포츠카는 그 전과 거의 같다(GT 0.94배 · 0.098초). 그 전에는 모든 차가 1배 · 0.095초였다.
+//   gain = 쏠림 · 끄덕임의 크기에 곱하는 값(0.9 ~ 1.8) · tau = 따라붙는 시간(초). height = 차 높이(m — manifest 의 size.height) · weight = 무게(karts.js 의 CARS).
+//   두 바퀴는 쏠리지 않고 눕는다(TWO_WHEEL) — 끄덕임도 그 전 그대로 둔다(1배 · 0.095초).
+export const SWAY_SAME = { gain: 1, tau: 0.095 };
+export function bodySway(height = 1.2, weight = 1) {
+  const gain = Math.min(1.8, Math.max(0.9, 0.9 + 0.6 * (height - 1.2) + 0.3 * (weight - 1)));
+  return { gain: +gain.toFixed(3), tau: +(0.06 + 0.04 * gain).toFixed(4) };
+}
 const store = new Map();   // id → { def, scene }
-let loading = null;
-export const VEHICLES = [];   // 불러온 차량의 제원(manifest 의 줄) — loadVehicles 가 끝나면 채워진다
+let loading = null, listing = null;   // listing: 차량 목록(manifest)과 로더를 받는 약속
+const single = new Map();             // id → 그 한 대를 받는 약속(loadVehicle)
+export const VEHICLES = [];   // 불러온 차량의 제원(manifest 의 줄 · manifest 의 차례) — 한 대를 받을 때마다 채워진다
 export const hasVehicle = id => store.has(id);
-export function loadVehicles(THREE) {
+const listed = () => listing ||= Promise.all([
+  import('../../bts/vendor/model-assets/GLTFLoader.js'),
+  fetch(new URL('manifest.json', BASE)).then(r => { if (!r.ok) throw new Error('차량 목록을 못 읽음 ' + r.status); return r.json(); }),
+]).then(([{ GLTFLoader }, manifest]) => ({ loader: new GLTFLoader(), manifest }));
+// 한 대만 받는다(이미 받았거나 받는 중이면 그것을 준다) — 첫 화면에 보이는 차를 먼저 받는 데 쓴다(약속 3.41). 받는 대로 hasVehicle · VEHICLES 에 들어간다.
+export function loadVehicle(THREE, id) {
+  if (!single.has(id)) single.set(id, (async () => {
+    const { loader, manifest } = await listed();
+    const def = manifest.vehicles.find(d => d.id === id); if (!def) throw new Error('목록에 없는 차량 ' + id);
+    const gltf = await loader.loadAsync(new URL(def.file, BASE).href);
+    store.set(def.id, { def, scene: gltf.scene });
+    VEHICLES.length = 0; VEHICLES.push(...manifest.vehicles.filter(d => store.has(d.id)));
+    return def;
+  })());
+  return single.get(id);
+}
+// 게임이 쓰는 차량을 다 받는다. first: 먼저 받을 차량 id 들(내 차 · 경주 상대) — 그것이 다 오면 onFirst() 를 부르고 나머지(차 고르기 화면에만 나오는 차)를 받는다.
+//   처음 부른 것의 first · onFirst 만 쓴다(그 뒤에 부르면 같은 약속을 준다).
+export function loadVehicles(THREE, { first = [], onFirst = null } = {}) {
   if (!loading) loading = (async () => {
-    const [{ GLTFLoader }, manifest] = await Promise.all([
-      import('../../bts/vendor/model-assets/GLTFLoader.js'),
-      fetch(new URL('manifest.json', BASE)).then(r => { if (!r.ok) throw new Error('차량 목록을 못 읽음 ' + r.status); return r.json(); }),
-    ]);
-    const loader = new GLTFLoader();
+    const { manifest } = await listed();
     const used = new Set(CARS.map(c => c.vehicle).filter(Boolean));   // 게임이 쓰는 차량만(manifest 는 그대로 둔다)
-    await Promise.all(manifest.vehicles.filter(def => used.has(def.id)).map(async def => { const gltf = await loader.loadAsync(new URL(def.file, BASE).href); store.set(def.id, { def, scene: gltf.scene }); }));
-    VEHICLES.length = 0; VEHICLES.push(...manifest.vehicles.filter(def => store.has(def.id)));
+    const ids = manifest.vehicles.filter(def => used.has(def.id)).map(def => def.id), head = ids.filter(id => first.includes(id));
+    // 한 대를 못 받아도 나머지는 받고(받은 것만이라도 제 모양으로), 다 끝난 뒤에 그 실패를 알린다.
+    const settle = async list => (await Promise.allSettled(list.map(id => loadVehicle(THREE, id)))).filter(r => r.status === 'rejected').map(r => r.reason);
+    const failed = []; if (head.length) { failed.push(...await settle(head)); onFirst?.(); }
+    failed.push(...await settle(ids.filter(id => !first.includes(id))));
+    if (failed.length) throw failed[0];
     return VEHICLES;
   })();
   return loading;
@@ -151,6 +179,7 @@ export function createVehicleModel(THREE, id, { colour = '#1f4fb4', night = fals
   const steerSign = steers.map(s => (s.position.z < 0 ? -1 : 1));
   // 실사 운전자는 코너에서 덜 기운다(사람 비율이라 크게 기울면 어색하다 — 0.38 rad → 약 0.13).
   const two = TWO_WHEEL[id] || null;
+  const sway = two ? SWAY_SAME : bodySway(def.size?.height, CARS.find(c => c.vehicle === id)?.weight);
   const leanScale = two ? two.torso : LIFELIKE_DRIVERS.has(id) ? 0.35 : 1;
   const wheel = find('steeringWheel'), torso = find('torso'), head = find('head');
   const base = { wheel: wheel?.rotation.z || 0, torso: torso?.rotation.z || 0, head: head?.rotation.z || 0, headYaw: head?.rotation.y || 0, torsoX: torso?.rotation.x || 0 };
@@ -192,8 +221,9 @@ export function createVehicleModel(THREE, id, { colour = '#1f4fb4', night = fals
     if (!grounded) st.air += dt; else { if (!st.wasGrounded && st.air > 0.08) st.bobV -= clamp(0.25 + st.air * 0.9, 0, 1.1); st.air = 0; }
     st.wasGrounded = grounded;
     const decay = Math.exp(-16 * dt), bounce = st.bobV + 16 * st.bobY; st.bobY = (st.bobY + bounce * dt) * decay; st.bobV = (st.bobV - 16 * bounce * dt) * decay;
-    st.roll = sm(st.roll, clamp(-st.lat * 0.0036, -0.052, 0.052) + (drifting ? -Math.sign(st.lat) * 0.022 : 0), 0.095, dt);
-    st.pitch = sm(st.pitch, clamp(-st.acc * 0.0035, -0.035, 0.03) + (boost > 0 ? -0.022 : 0) + (grounded ? 0 : -0.03), 0.1, dt);
+    const G = sway.gain;   // 차마다의 쏠림 크기(위 bodySway). 부스트 · 공중의 끄덕임은 모든 차가 같다
+    st.roll = sm(st.roll, clamp(-st.lat * 0.0036 * G, -0.052 * G, 0.052 * G) + (drifting ? -Math.sign(st.lat) * 0.022 * G : 0), sway.tau, dt);
+    st.pitch = sm(st.pitch, clamp(-st.acc * 0.0035 * G, -0.035 * G, 0.03 * G) + (boost > 0 ? -0.022 : 0) + (grounded ? 0 : -0.03), sway.tau + 0.005, dt);
     if (two) {
       // 두 바퀴: 차체 쏠림(바깥으로) 대신 온몸이 코너 안쪽으로 눕는다. 오른쪽으로 돌면(lat > 0) +z 회전 = 오른쪽으로 눕는다.
       // 원점(두 접지점을 잇는 선)을 축으로 돌리므로 두 바퀴는 땅에 남는다. 타이어가 둥근 만큼(tyre · (1 − cos)) 들어 땅을 안 뚫게 한다.
@@ -225,7 +255,7 @@ export function createVehicleModel(THREE, id, { colour = '#1f4fb4', night = fals
   }
   update({ speed: 0 }, 0);
   return {
-    group, update, materials: mats, vehicle: def.id, twoWheel: !!two, get bank() { return st.bank; }, pedal: pedal ? pedal.state : null,
+    group, update, materials: mats, vehicle: def.id, twoWheel: !!two, get bank() { return st.bank; }, get roll() { return st.roll; }, get pitch() { return st.pitch; }, sway, pedal: pedal ? pedal.state : null,
     headlightMount: night ? { frame: tilt, bumperZ: def.frontCorners[0][1] } : null,
     stats: { triangles: def.triangles ?? 0, meshes: 0, materials: Object.keys(mats).length, drawCalls: (def.drawCalls ?? 0) + 1 },
     dispose() { for (const material of Object.values(mats)) material.dispose(); booster.dispose(); group.removeFromParent(); },

@@ -26,7 +26,7 @@ export const RACE_VER = 1;
 export const RACE_MODES = ['gp'];   // 경주 모드 — 2026-11-25 스피드전(race)을 뺐다. 경주 계산은 그대로(그랑프리가 쓰는 길)
 // 상대 일곱이 입는 차(자리 0 ~ 6) — 기본 차(GT)를 고른 사람이 그 전에 보던 상대 그대로(CARS 에서 GT 다음 일곱). 차 목록에 차를 더해도 안 바뀐다.
 export const RIVAL_CARS = ['supercar_real', 'golfcart_real', 'forklift_real', 'shoppingcart_real', 'bicycle_real', 'racebike_real', 'truck_real'];
-export const RIVAL_KART = carOf(DEFAULT_CAR).kart;   // 상대의 주행 감각(고속형 — GT 의 것). 난이도가 그 위에 곱해진다
+export const RIVAL_KART = 'cruise';   // 배포판 GT의 기본 고속형 그대로. 상대 일곱은 차별 감각 배율을 쓰지 않는다.
 export const rivalCarOf = i => carOf(RIVAL_CARS[i % RIVAL_CARS.length]);
 // 모드의 바퀴 수 · 데미지(그랑프리 — 피트가 없는 코스는 데미지도 없다)
 export const raceLaps = (picked, mode) => picked.laps[mode];

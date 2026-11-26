@@ -5,7 +5,11 @@
 //   (Ctrl 은 쓰지 않는다 — 맥은 Ctrl+방향키 · Ctrl+Space 가 시스템 단축키, 윈도우는 Ctrl+W 가 탭 닫기)
 // 경적(X)은 주행 입력이 아니다 — read() · peek() 에 안 들어가고(기록 · 서버 검증과 무관) 터치 모드도 안 바꾼다. horn() 으로 읽거나 onHorn(fn) 으로 누름 · 뗌을 받는다.
 // read().kick: '다시 밟기' 신호(약속 3.11) — 키보드 모드는 가속 키, 터치 모드는 드리프트 단추가 눌려 있는지.
-// kickAt: 그 신호가 마지막으로 새로 켜진 시각(performance.now() ms, 처음엔 0).
+// read().kickTap: 그 신호의 '톡'(짧은 가속을 주는 것은 이것이다) — 키보드는 가속 키를 새로 누를 때, **터치는 드리프트 단추를 뗄 때**(2026-11-26).
+//   그 전에는 터치도 누를 때였다 → 드리프트가 끝나고 0.5초 안에 드리프트 단추를 다시 누르면 짧은 가속으로 쓰이고 그 누름으로는 드리프트가 안 걸렸다
+//   (사용자: "모바일에서 가끔 드리프트가 잘 안눌리는 … 드리프트가 아니라 부스트가 눌리는 느낌"). 이제 드리프트 단추는 언제나 드리프트만 걸고,
+//   충분히(0.25초) 미끄러진 드리프트를 손을 떼어 끝내면 그 순간 짧은 가속이 붙는다(자동 가속이라 가속을 새로 밟을 수 없는 터치의 '다시 밟기').
+// kickAt: 그 신호가 마지막으로 새로 켜진 시각(performance.now() ms, 처음엔 0) — 출발 가속 판정용이라 터치는 예전처럼 드리프트 단추를 누른 시각이다.
 // 터치: touchRoot 안에 ◀ ▶ 단추(오른쪽 아래 — 누르는 동안 −1 · +1, 키보드와 같다)와 단추 3개(왼쪽 아래: 드리프트 · 부스트 · 브레이크)를 만든다.
 //   터치 단추를 한 번이라도 쓰면 '터치 모드' — 자동 가속(브레이크를 누르는 동안만 풀림). 키보드를 누르면 다시 키보드 모드.
 // pointercancel · 창 포커스 잃음 · 화면 숨김에 모든 입력을 비운다.
@@ -23,6 +27,7 @@ const KEY_BY_NAME = { ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'do
 //   누르면 밝아지고 테가 굵어진다(data-on), 부스트가 준비되면 노란 테 · 빛(data-ready). 그림은 SVG(아래 GLYPH — 이 게임이 직접 그린 것). 보이는 모양(i)보다 누르는 자리(.kt-btn)가 넓다.
 //   누르는 자리(휴대폰 가로 / 세로, px — 애플 지침의 44pt 이상): ◀ ▶ 96 / 84(둘 사이 8 / 6) · 드리프트 112 / 100 · 부스트 82 / 74 · 브레이크 64 / 58.
 //   드리프트는 구석, 부스트는 그 위 안쪽(엄지가 위로 굽는 호), 브레이크는 작게 안쪽. 안전 영역(노치 · 홈 막대)만큼 더 들인다.
+//   부스트의 누르는 자리는 드리프트의 오른쪽 위와 조금 겹친다(가로 6 × 32 px · 세로 14 × 6 px) — 겹친 자리는 드리프트가 받는다(z-index, 2026-11-26).
 //   손 바꾸기: steerHand 'left'(설정의 '조향: 왼손') 면 좌우를 뒤집는다(.kt-wrap[data-hand=left]).
 // 확대 막기(2026-11-25 사용자 "부스터 같은 거 누른다고 터치 연속으로 하면 화면이 막 확대돼"): 아이폰 사파리는 viewport 의 user-scalable=no 를 듣지 않고,
 //   pointerdown 의 preventDefault 는 확대 · 돋보기 같은 기본 동작을 막지 못한다(포인터 이벤트 규격). 그래서 단추 층에 터치 이벤트(touchstart · touchmove · touchend)를
@@ -42,6 +47,7 @@ const STYLE = `
 .kt-btn small{position:relative;font:italic 800 10.5px/1 -apple-system,"Apple SD Gothic Neo",system-ui,sans-serif;opacity:.85;letter-spacing:.02em}
 .kt-stripe{position:absolute;left:22%;right:22%;bottom:9px;height:5px;display:flex;transform:skewX(-28deg)}
 .k-drift>i{padding-bottom:12px}
+.k-drift{z-index:1}
 .kt-stripe i{flex:1;background:#fff}.kt-stripe i:nth-child(odd){background:#2d63d8}
 .kt-btn[data-on="1"]>i{transform:scale(1.05)}
 .kt-btn[data-on="1"] .kt-shape polygon{fill:rgba(255,255,255,.3);stroke:rgba(255,255,255,.95);stroke-width:3px}
@@ -163,8 +169,9 @@ export function createInput({ keyTarget = globalThis.window, touchRoot = null, s
     for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) on(pad, t, padEnd);
     on(pad, 'contextmenu', e => e.preventDefault());
     for (const { key, el } of buttons) {
-      on(el, 'pointerdown', e => { e.preventDefault(); if (key === 'drift' && !touch.drift.size) { kickAt = now(); latch.kick = true; } if (key === 'boost') latch.boost = true; touch[key].add(e.pointerId); touchMode = true; capture(el, e); el.dataset.on = '1'; });
-      const end = e => { touch[key].delete(e.pointerId); if (!touch[key].size) el.dataset.on = '0'; };
+      on(el, 'pointerdown', e => { e.preventDefault(); if (key === 'drift' && !touch.drift.size) kickAt = now(); if (key === 'boost') latch.boost = true; touch[key].add(e.pointerId); touchMode = true; capture(el, e); el.dataset.on = '1'; });
+      // 드리프트 단추에서 마지막 손가락을 뗀 순간(pointerup — 손을 뗀 것만. 창을 떠나거나 끊긴 것은 아니다)이 '다시 밟기'의 톡이다
+      const end = e => { const was = touch[key].delete(e.pointerId); if (!touch[key].size) { el.dataset.on = '0'; if (was && key === 'drift' && e.type === 'pointerup') latch.kick = true; } };
       for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) on(el, t, end);
       on(el, 'contextmenu', e => e.preventDefault());
     }

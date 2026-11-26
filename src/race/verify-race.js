@@ -11,7 +11,7 @@ import { RACE_VER, RACE_MODES, newRace, raceContext, placeRace, stepRace, snapsh
 import { snapShapeOk, compare, unexpected, expandInputs } from './verify-run.js';
 import { decodeInput, INPUT_MAX, BIT, MAX_RUN_TICKS, MAX_RUN_MS } from './run-log.js';
 import { COURSES } from '../track/courses.js';
-import { SPEED_CLASSES, classParams } from '../kart/classes.js';
+import { SPEED_CLASSES, carParams } from '../kart/classes.js';
 import { CARS, footprintOf } from '../kart/karts.js';
 import { createKartSim } from '../kart/physics.js';
 import { createCarState } from './carstate.js';
@@ -60,7 +60,7 @@ function shapeError(sub) {
   const want = Math.ceil(ticks / CHECK_EVERY);
   if (cps.length !== want) return fail('checkpoint', { count: cps.length, want });
   for (let i = 0; i < want; i++) { if (!snapShapeOk(cps[i])) return fail('shape', { checkpoint: i }); if (cps[i][0] !== i * CHECK_EVERY) return fail('checkpoint', { at: i, tick: cps[i][0], want: i * CHECK_EVERY }); }
-  const limit = grantLimit(classParams(klass, { kart: carDef.kart }));
+  const limit = grantLimit(carParams(carDef.id, klass));
   if (grants.length > 1) return fail('grant', { count: grants.length });
   if (grants.length && (!isInt(grants[0]) || grants[0] < 0 || grants[0] > limit)) return fail('grant', { tick: grants[0], limit });
   return null;
@@ -77,7 +77,7 @@ export function verifyRace(sub, options = {}) {
 
 // 한 판을 지어 출발 자리에 세운다(시험 · 재는 글도 쓴다 — level 은 시험이 '다른 난이도로 달린 손님'을 지을 때만)
 export function buildRaceRun({ course, klass, car, mode, heightAt, level = RACE_LEVEL }) {
-  const carDef = CARS.find(c => c.id === car), P0 = classParams(klass, { kart: carDef.kart }), B = courseFor(course, heightAt);
+  const carDef = CARS.find(c => c.id === car), P0 = carParams(carDef.id, klass), B = courseFor(course, heightAt);
   const sim = createKartSim({ params: P0, world: B.world, body: footprintOf(carDef) });
   const race = newRace(B, { mode, level, klass, car });
   const R = raceContext({ built: B, sim, car: createCarState({ pit: B.pit, damageScale: damageScaleOf(B.picked) }), watch: B.rescue.watcher(), clock: B.makeClock(), race, mode, weight: carDef.weight ?? 1 });

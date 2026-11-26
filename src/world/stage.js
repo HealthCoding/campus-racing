@@ -255,7 +255,7 @@ export function createStage(THREE, canvas, { quality = 'auto', look = 'day', cre
     renderer, scene, camera, sun, hemi, sky, floor,
     resize, followShadow, invalidateShadow, render, setLook, setQuality, pace, snap, shoot,
     get look() { return lookName; }, get quality() { return q.mode; },
-    info() { const r = renderer.info.render; return { calls: r.calls, triangles: r.triangles, pixelRatio: renderer.getPixelRatio(), shadowPass: lastShadowPass, shadowUpdates, shadowSize: sun.shadow.mapSize.x, ceiling: q.ratio, drops: pacer.drops, lifted: pacer.lifted, quality: q.mode, mobile, frameMs: pacer.average, restored: pacer.restored, kept: pacer.kept }; },
+    info() { const r = renderer.info.render; return { calls: r.calls, triangles: r.triangles, pixelRatio: renderer.getPixelRatio(), shadowPass: lastShadowPass, shadowUpdates, shadowSize: sun.shadow.mapSize.x, ceiling: q.ratio, drops: pacer.drops, lifted: pacer.lifted, quality: q.mode, mobile, frameMs: pacer.average, restored: pacer.restored, kept: pacer.kept, raised: pacer.raised }; },
     dispose() { post?.dispose(); renderer.dispose(); sky.geometry.dispose(); sky.material.dispose(); floor.geometry.dispose(); floor.material.dispose(); sun.shadow.map?.dispose(); },
   };
 }

@@ -1,6 +1,6 @@
 // 게임 진입: 캠퍼스 → 트랙 → 카트를 붙이고, 고정 간격(1/120 초)으로 주행을 계산해 화면에 보간해 그린다.
 // 약속은 docs/구조와_계약.md. 주소 인자: ?auto=1(자동 운전) &speed=4(자동 운전 배속) &class=normal|fast|faster(개발 · 검증용 — 게임에는 '아주 빠름' 하나뿐이고 고르는 칸이 없다) &level=easy|normal|hard|expert(상대의 난이도) &radio=off|yuna|shelley|eddy|rocko(무전 — 공개판에서는 뺐다. 이 인자를 줄 때만 켜진다) &quality=auto|high|smooth &time=night|day|golden(기본 night — 2026-11-23 사용자가 첫 화면 장면으로 밤을 골라 경주도 밤에 시작한다) &ghost=0 &sound=0 &music=off(배경음악만 끔)
-//   &tune=1(개발용 조정판)
+//   &tune=1(개발용 조정판) · &feel=0~1.5(조정판에서 차별 감각 세기)
 //   &mode=gp|time(그랑프리 — 상대 7대 · 코스의 바퀴 수 | 타임어택 — 혼자 · 기록 유령. 안 주면 지난번에 고른 것, 처음이면 그랑프리. 2026-11-25 스피드전을 뺐다 — 옛 &mode=race · 남아 있던 'race' 는 그랑프리로)
 //   &kart=balance|sprint|cruise|drift(카트 종류 — 모양과 주행 감각. 안 주면 지난번에 고른 것)
 //   &car=<차 id>(karts.js 의 CARS — 모양과 주행 감각. 안 주면 지난번에 고른 것. 예전의 &kart=balance|sprint|cruise|drift 는 그 감각의 카트를 고른다)
@@ -13,18 +13,19 @@
 import './net/unpack.js';   // 맨 먼저: 올릴 묶음의 3D 파일은 gzip 으로 줄여져 있다 — fetch 를 감싸 받아서 푼다(개발 중의 원본은 그대로 지나간다)
 import * as THREE from '../bts/vendor/three.module.js';
 import { createStage, LOOKS } from './world/stage.js';
+import { createCapProbe, createSlowWatch, showPower, powerText } from './world/frame-cap.js';
 import { loadCampus } from './world/campus.js';
 import { createTrack } from './track/track.js';
 import { createCourseWorld } from './track/parts.js';
 import { createKartSim } from './kart/physics.js';
-import { SPEED_CLASSES, DEFAULT_CLASS, classParams, baseParams } from './kart/classes.js';
-import { DEFAULT_KART, CARS, DEFAULT_CAR, carOf, kartOf, KART_STATS, STAT_NAMES, BODY_NAME, bodyStat, footprintOf } from './kart/karts.js';
+import { SPEED_CLASSES, DEFAULT_CLASS, carParams, carStats, carKind, baseParams } from './kart/classes.js';
+import { CARS, DEFAULT_CAR, carOf, kartOf, STAT_NAMES, BODY_NAME, bodyStat, footprintOf } from './kart/karts.js';
 import { createGarage, shootShowroom } from './garage.js';
 import { createInput } from './kart/input.js';
 import { startBoostDue } from './kart/start-boost.js';
 import { createAutoDriver } from './kart/autodrive.js';
 import { createKartModel, KART_DIMENSIONS } from './kart/model.js';
-import { loadVehicles, createVehicleModel, hasVehicle, VEHICLES } from './kart/vehicles.js';
+import { loadVehicles, loadVehicle, createVehicleModel, hasVehicle, VEHICLES } from './kart/vehicles.js';
 import { createKartEffects } from './kart/effects.js';
 import { createKartShadow } from './kart/shadow.js';
 import { createChaseCamera, CAMERA, CINE_CAMERA, cameraForCar } from './kart/camera.js';
@@ -41,7 +42,7 @@ import { createGhostRecorder, createGhostPlayer, createGhostStores, pruneGhosts 
 import { createAudio, pauseWhenHidden } from './audio.js';
 import { createRace, RACE, RIVALS, LEVELS, DEFAULT_LEVEL } from './race/race.js';
 // 경주 한 틱의 계산(서버의 다시 계산과 같은 코드 — 2026-11-24 경주 랭킹)과 주행 지형(서버와 같은 자료 · 결정적 수학)
-import { newRace as newRaceRun, withRivalWorld, raceContext, placeRace, stepRace, snapshotRace, rivalCarOf, raceVersion, RACE_VER, applyRaceCap, damageScaleOf } from './race/race-run.js';
+import { newRace as newRaceRun, withRivalWorld, raceContext, placeRace, stepRace, snapshotRace, rivalCarOf, RIVAL_CARS, raceVersion, RACE_VER, applyRaceCap, damageScaleOf } from './race/race-run.js';
 import { simTerrain } from './race/sim-terrain.js';
 import { createCarState } from './race/carstate.js';
 import { createRadio } from './radio.js';
@@ -99,16 +100,52 @@ export function rankRaceRun(rank, game, hud, info, handlers) {
   return true;
 }
 
+// 올릴 수 없는 시승판에서만 차별 감각의 세기를 받는다. 생략하거나 범위를 벗어나면 배포값이다.
+export function feelStrengthFor(query) {
+  const raw = query.get('feel');
+  if (query.get('tune') !== '1' || !raw?.trim()) return undefined;
+  const strength = Number(raw);
+  return Number.isFinite(strength) && strength >= 0 && strength <= 1.5 ? strength : undefined;
+}
+
 const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 const lerp = (a, b, t) => a + (b - a) * t;
 
+// 지난번에 고른 차: 주소 ?car=(· 예전의 ?kart=)가 먼저, 없으면 브라우저에 남긴 것, 없으면 GT. boot 가 캠퍼스를 받기 전에 그 차의 모형부터 받으려고 따로 뺐다(약속 3.41).
+const CAR_KEY = 'campus-kart:car', KART_KEY = 'campus-kart:kart';   // KART_KEY: 차 고르기 화면이 생기기 전에 남긴 값(감각만)
+export function savedCar(query) {
+  const kartCar = type => CARS.find(c => !c.vehicle && c.kart === type)?.id;
+  let id = query.get('car') || kartCar(query.get('kart')) || null; try { id ||= localStorage.getItem(CAR_KEY) || kartCar(localStorage.getItem(KART_KEY)); } catch {}
+  return CARS.some(c => c.id === id) ? id : DEFAULT_CAR;
+}
+
 async function boot(query, picked, hud, game) {
   const { course, partsData, pitData, sections } = picked, canvas = document.getElementById('game');
+  // 30장 묶임 재기(frame-cap.js · 약속 3.39): 열자마자 가벼운 requestAnimationFrame 으로 화면을 부르는 간격을 본다 — 불러오는 동안 짧은 간격이 한 번이라도 나오면 묶이지 않은 기기다.
+  //   묶인 기기(저전력 모드)의 시작 화면에만 한 줄을 보인다(powerNow → hud.ready 의 power · 떠 있는 동안 바뀌면 hud.power).
+  //   **맥의 크롬은 저전력 모드에서 묶이지 않고 느려지기만 한다**(사용자 2026-11-26 "일단 저전력 모든데 안떠") → 시작 화면을 실제로 그리는 간격도 본다(slowWatch).
+  //   느리기만 한 것은 터치 기기가 아니고 충전 중이라고 알려지지 않았을 때만 보인다(showPower — 휴대폰은 원래 느린 기기가 많고, 책상 PC 는 크롬이 '충전 중'으로 알려 준다).
+  // 처음 온 사람에게만: 시작 화면의 말풍선(약속 3.40 — 모드 · 피트 · 부스트를 한 번 알려 준다). 브라우저에 'campus-kart:tip' = new(처음 왔다 — 닫거나 출발할 때까지 보인다) | old(이 기능 전에 온 적이 있다) | 1(봤다).
+  //   **다른 것이 저장소에 쓰기 전에** 본다(이 줄이 boot 의 맨 앞에 있어야 하는 까닭). 저장소를 못 쓰면 열 때마다 한 번 보인다.
+  const TIP_KEY = 'campus-kart:tip'; let tipOn = false;
+  try { let seen = localStorage.getItem(TIP_KEY); if (!seen) { seen = Object.keys(localStorage).some(k => k.startsWith('campus-kart:')) ? 'old' : 'new'; localStorage.setItem(TIP_KEY, seen); } tipOn = seen === 'new'; } catch { tipOn = true; }
+  const seeTip = () => { if (!tipOn) return; tipOn = false; try { localStorage.setItem(TIP_KEY, '1'); } catch {} };
+  const capProbe = createCapProbe(), slowWatch = createSlowWatch(); let capWatch = true, powerShown = '', powerAt = 0, charging;   // charging: 모르면 undefined(사파리 · 파이어폭스)
+  try { navigator.getBattery?.().then(b => { charging = b.charging; b.addEventListener('chargingchange', () => { charging = b.charging; }); }, () => {}); } catch {}
+  const powerNow = () => showPower({ capped: capProbe.capped, slow: slowWatch.slow, touch: TOUCH, charging }) ? powerText(navigator.userAgent) : '';
+  // 재는 동안 구석의 1픽셀을 번갈아 칠한다: 크롬은 화면에 바뀐 것이 없는 장이 이어지면 부르는 간격을 절반으로 줄인다(그러면 묶이지 않은 기기도 33.3 ms 로 보인다). 첫 화면을 그리면 뗀다.
+  const capDot = document.createElement('i'); capDot.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;pointer-events:none'; document.body.appendChild(capDot);
+  let capFlip = false; const capPaint = () => { capFlip = !capFlip; capDot.style.background = capFlip ? 'rgba(0,0,0,.02)' : 'rgba(0,0,0,.04)'; };
+  { const tick = t => { if (!capWatch) return; capProbe.sample(t, false, !document.hidden); capPaint(); requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
   const AUTO = query.has('auto'), SPEEDUP = AUTO ? Math.max(1, Math.min(16, Number(query.get('speed')) || 1)) : 1;
   // 시작 화면 배경 주행(src/attract.js): 기본은 cams(2026-11-23 사용자가 로비 시안에서 'B 중계 카메라'를 고름 — 차 넷이 달리고 카메라가 4~6초마다 바뀐다).
   //   ?attract=0 | off 예전처럼 서 있는 차 · ?attract=follow 비교용(따라가며) · ?attract=cams 그대로. 자동 운전(?auto)과 움직임 줄이기(prefers-reduced-motion)는 서 있는 차(주소로 follow · cams 를 주면 그것).
   const attractQuery = query.get('attract'), REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ATTRACT = AUTO || ['0', 'off'].includes(attractQuery) ? null : ['follow', 'cams'].includes(attractQuery) ? attractQuery : REDUCED_MOTION ? null : 'cams';
+  // 첫 화면에 보이는 차의 모형부터 받는다(약속 3.41): 내 차 + 배경 주행(cams)의 상대 셋(attract.js 의 ATTRACT.rivals). 캠퍼스를 받는 동안 같이 받고, 시작 화면은 이것을 기다린다(아래 '첫 화면의 차 모형을 기다린다').
+  //   사용자 2026-11-26 "가끔 첫화면에서 차는 GT인데 다른걸로 차가 설정되어있고, 플레이도 다른 차로 진행되는 버그" — 모형 파일은 캠퍼스를 다 받은 뒤에야 받기 시작했고, 올 때까지 모든 차를 임시 카트 모양으로 그렸다
+  //   (연결이 느리거나 처음 여는 주소면 그 사이가 길다. 설정 · 주행 값은 내내 고른 차였고 모양만 달랐다).
+  const firstModels = Promise.allSettled([savedCar(query), ...(ATTRACT === 'cams' ? RIVAL_CARS.slice(0, 3) : [])].map(id => carOf(id).vehicle).filter(Boolean).map(id => loadVehicle(THREE, id)));
   const TICK = 1 / 120, PARTS_ON = query.get('parts') !== '0', GHOST_ON = query.get('ghost') !== '0', audio = query.get('sound') === '0' || AUTO ? null : createAudio();
   const RANK_API = rankApiFor(location, document.querySelector('meta[name="rank-api"]')?.content, query.get('rankApi'));
 
@@ -214,14 +251,14 @@ async function boot(query, picked, hud, game) {
   let klass = query.get('class');
   if (!SPEED_CLASSES.some(c => c.id === klass)) klass = DEFAULT_CLASS;
   // 카트 종류(모양과 주행 감각이 다르다): 주소 인자 ?kart= > 지난번에 고른 것 > 기본. 종류마다 기록 · 유령이 따로다.
-  const CAR_KEY = 'campus-kart:car', KART_KEY = 'campus-kart:kart';   // KART_KEY: 차 고르기 화면이 생기기 전에 남긴 값(감각만)
-  const kartCar = type => CARS.find(c => !c.vehicle && c.kart === type)?.id;
-  let carId = query.get('car') || kartCar(query.get('kart')) || null; try { carId ||= localStorage.getItem(CAR_KEY) || kartCar(localStorage.getItem(KART_KEY)); } catch {}
-  if (!CARS.some(c => c.id === carId)) carId = DEFAULT_CAR;
+  let carId = savedCar(query);
   let kartId = carOf(carId).kart;   // 주행 감각. 타임어택의 기록 · 유령은 차마다 따로다(2026-11-25 사용자 "따로 저장" — 그 전에는 감각마다)
   audio?.setCar(carId);   // 엔진 소리는 차를 따른다(audio.js 의 CAR_ENGINE — 2026-11-24 사용자: "트럭이나 F1카나 소리가 같으니까 좀 이상한 것 같아")
   // 조정판이 고친 값(등급을 곱하기 전의 기준값). 비어 있으면 params.js 그대로다.
-  const tuned = {}, paramsNow = () => classParams(klass, { base: tuned, kart: kartId });
+  const tuned = {}, strength = feelStrengthFor(query), carOptions = { base: tuned, strength };
+  const paramsNow = () => carParams(carId, klass, carOptions);
+  const isTuned = () => strength !== undefined || Object.keys(tuned).length > 0;
+  const tuneSuffix = () => strength !== undefined ? ':tuned:' + strength : isTuned() ? ':tuned' : '';
   // 부딪힘 모양 — 고른 차의 실제 크기(벽 · 몸싸움 · 출발 자리, 2026-11-23). 주소 body=0 이면 예전처럼 모든 차가 카트의 원 하나(검증 · 비교용)
   const BODY_OFF = query.get('body') === '0', bodyNow = () => BODY_OFF ? null : footprintOf(carOf(carId));
   let sim = createKartSim({ params: paramsNow(), world, body: bodyNow() });
@@ -233,8 +270,9 @@ async function boot(query, picked, hud, game) {
   //   (2026-11-25 부터 B · D 둘 다 피트가 있어 지금 코스에서는 안 나오는 길 — 남겨 둔다. 시험은 검증/verify-race.test.mjs 의 가짜 코스)
   const gpDamage = !!pit;
   // 2026-11-25 사용자: "그랑프리랑 타임어택만 있어도 될 것 같기도하고" → 스피드전을 뺐다. 처음 오는 사람은 그랑프리. 바퀴 수는 코스마다(courses.js — 한 판 3 ~ 4분 안쪽)
-  const MODES = [{ id: 'gp', name: '그랑프리', note: gpDamage ? `${picked.laps.gp}바퀴 · 데미지 · 피트` : `${picked.laps.gp}바퀴`, rivals: true, laps: picked.laps.gp, damage: gpDamage },
-    { id: 'time', name: '타임어택', note: '혼자 · 기록', rivals: false }], MODE_KEY = 'campus-kart:mode', modeNow = () => MODES.find(m => m.id === mode) || MODES[0];
+  // hint: 모드 단추의 이름 밑에 보이는 한 줄(2026-11-26 사용자 "처음하는사람들은 … 차이가 뭔지 모르니까, 가볍게 알려주는 것" → 시안 '가: 단추 안에 한 줄'). note 는 그대로 단추의 title(마우스를 올리면)이다.
+  const MODES = [{ id: 'gp', name: '그랑프리', hint: `상대 7대 · ${picked.laps.gp}바퀴`, note: gpDamage ? `${picked.laps.gp}바퀴 · 데미지 · 피트` : `${picked.laps.gp}바퀴`, rivals: true, laps: picked.laps.gp, damage: gpDamage },
+    { id: 'time', name: '타임어택', hint: `혼자 · ${TRIAL_LAPS}바퀴 기록`, note: '혼자 · 기록', rivals: false }], MODE_KEY = 'campus-kart:mode', modeNow = () => MODES.find(m => m.id === mode) || MODES[0];
   // 상대의 난이도: 주소 인자 ?level= > 지난번에 고른 것 > 보통. 값은 race.js 의 LEVELS(쉬움 = 2026-11-20 까지의 상대 그대로).
   const LEVEL_KEY = 'campus-kart:level'; let levelId = query.get('level'); try { levelId ||= localStorage.getItem(LEVEL_KEY); } catch {} if (!LEVELS.some(l => l.id === levelId)) levelId = DEFAULT_LEVEL;
   let mode = query.get('mode'); try { mode ||= localStorage.getItem(MODE_KEY); } catch {} if (mode === 'race') mode = 'gp'; if (!MODES.some(m => m.id === mode)) mode = 'gp';   // 옛 스피드전(주소 · 브라우저에 남은 값)은 그랑프리로
@@ -349,17 +387,20 @@ async function boot(query, picked, hud, game) {
   // 실제 크기 실사 차를 고르고 줄이지 않았으면 차 크기에 맞춘 카메라. 차 고르기 화면에서 바꾸면 그 차의 카메라로 따라간다(조정판은 처음 차의 값을 고친다).
   const tuningOf = vehicle => (query.get('size') !== 'game' ? cameraFor(vehicle) : null) || (query.get('cam') === 'cine' ? CINE_CAMERA : CAMERA);
   const cameraTuning = tuningOf(carOf(carId).vehicle), cameraTunings = new Map([[carOf(carId).vehicle, cameraTuning]]);
-  const chase = createChaseCamera(THREE, stage.camera, { heightAt: roadAt, ceilingAt: (x, z, y) => viewWorld.ceilingAt(x, z, y), blocked,
+  // 카메라의 '빠를 때' 끝은 지금 차 · 등급의 일반 최고속에서 닿는다(2026-11-26 속도감 — 그 전에는 72 km/h 에서 다 벌어졌다). 피트레인의 제한 속도로 묶인 값이 아니라 제 최고속을 쓴다.
+  let topKey = '', topValue = 0;
+  const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');   // 카메라의 잔떨림은 설정의 지금 값을 읽는다(게임을 연 뒤에 켜도 듣게 — 2026-11-26 검토)
+  const topSpeedNow = () => { const key = klass + ':' + carId; if (key !== topKey) { topKey = key; topValue = paramsNow().maxSpeed; } return topValue; };
+  const chase = createChaseCamera(THREE, stage.camera, { heightAt: roadAt, ceilingAt: (x, z, y) => viewWorld.ceilingAt(x, z, y), blocked, topSpeed: topSpeedNow, calm: () => motionQuery.matches,
     tuning: () => { const v = carOf(carId).vehicle; if (!cameraTunings.has(v)) cameraTunings.set(v, tuningOf(v)); return cameraTunings.get(v); } });
   // 시작 화면 배경 주행(?attract=): 제 차 계산 · 상대 · 카메라를 따로 갖는다 — 게임의 sim · race · 기록은 안 건드린다
   const attract = ATTRACT ? (await import('./attract.js')).createAttract(THREE, ATTRACT, { startAt: picked.show?.attract, course, parts, world, rivalWorld, ground, groundAt: campus.heightAt, blocked, campus, rescue,
     params: () => paramsNow(), body: () => bodyNow(), size: () => REAL_SIZES[carOf(carId).vehicle] || [1.82, 1.155], level: () => levelId, weigh, weight: () => carOf(carId).weight ?? 1 }) : null;
   game.attract = attract;
 
-  // 기록 유령: 내 최고 판(서서 출발한 3바퀴 전체 — 출발 신호부터)을 반투명 카트로 같이 달리게 한다. 저장 이름의 판 번호는 1바퀴 때(v5)와 섞이지 않게 'v5x3'(옛 것은 지운다 — ghost.js 의 pruneGhosts).
-  // 차마다 따로(2026-11-25 사용자 "따로 저장" — 이 차로 낸 내 최고가 유령 · BEST): 저장 이름에 감각 대신 차 id 를 넣고 판 번호에 'c' 를 붙여 감각마다였던 'v5x3' 을 지운다.
+  // 타임어택 최고와 유령은 코스 · 등급 · 차마다 따로 저장한다. RULES 6에서 옛 감각의 v5x3c 유령을 지운다.
   const GHOST_VER = RULES + 'x' + TRIAL_LAPS + 'c'; pruneGhosts(GHOST_VER);
-  const stores = createGhostStores(course.id, GHOST_VER), recorder = createGhostRecorder(), storeName = () => klass + (carId === DEFAULT_CAR ? '' : ':' + carId) + (PARTS_ON ? '' : ':flat') + (Object.keys(tuned).length ? ':tuned' : ''); let store = stores.for(storeName()), storeNow = storeName();   // 조정판으로 카트 값을 고친 채 세운 기록은 따로 둔다
+  const stores = createGhostStores(course.id, GHOST_VER), recorder = createGhostRecorder(), storeName = () => klass + (carId === DEFAULT_CAR ? '' : ':' + carId) + (PARTS_ON ? '' : ':flat') + tuneSuffix(); let store = stores.for(storeName()), storeNow = storeName();   // 조정판으로 카트 값을 고친 채 세운 기록은 따로 둔다
   let ghostPlayer = null, ghostKart = null; const ghostPose = {};
   // 유령 카트(반투명): 지금 고른 카트 종류의 모양으로
   function makeGhostKart() {
@@ -373,7 +414,8 @@ async function boot(query, picked, hud, game) {
   // 갈아입히기: 내 차 · 유령 · 상대 일곱의 모양을 지금 고른 차에 맞춰 다시 만든다(차를 바꿨을 때, 차량을 다 불러왔을 때)
   const wear = (old, model) => { model.group.traverse(node => { if (node.isMesh) node.castShadow = false; }); model.group.visible = old.group.visible; model.group.position.copy(old.group.position); model.group.rotation.copy(old.group.rotation); stage.scene.remove(old.group); old.dispose?.(); stage.scene.add(model.group); return model; };
   function dress() { kart = wear(kart, raceModel()); night?.follow(kart); makeGhostKart(); rivalKarts.forEach((r, i) => { r.model = wear(r.model, raceModel({ colour: RIVALS[i].colour }, rivalCar(i))); }); }   // 모양만(그 전에는 여기서 weigh(race) 로 달리는 중에도 부딪힘 모양을 다시 줬다 — 2026-11-24 뺐다)
-  loadVehicles(THREE).then(() => { dress(); game.vehicles = true; }).catch(error => console.warn('차량 모델을 불러오지 못함', error));
+  // 경주에 나오는 차(내 차 · 상대 일곱)를 먼저 받아 갈아입히고, 차 고르기 화면에만 나오는 차는 그다음에 받는다(그것은 달리는 화면에 없어 다시 갈아입히지 않는다 — 약속 3.41).
+  loadVehicles(THREE, { first: [carId, ...RIVAL_CARS].map(id => carOf(id).vehicle).filter(Boolean), onFirst: dress }).then(() => { game.vehicles = true; }).catch(error => console.warn('차량 모델을 불러오지 못함', error));
   // 최고 기록은 늘 읽고, 유령을 같이 달리게 할지만 설정(?ghost=0)에 따른다.
   const useBest = () => { const best = mode === 'time' ? store.load() : null; ghostPlayer = ghostOn && best ? createGhostPlayer(best) : null; game.best = best ? best.lapTime : null; };   // 유령 · 최고 기록(3바퀴 합계 — 이름 lapTime 은 그대로)은 타임어택의 것
   useBest();
@@ -413,11 +455,11 @@ async function boot(query, picked, hud, game) {
     if (game.phase === 'ready' || game.phase === 'garage') park();   // 시작 화면에서는 내 차를 언더우드관 앞에 세워 보인다(출발하면 begin → place 가 출발 자리로)
   }
   function begin(step = 0.9) { rank?.clear(); if (rank) warmRank(performance.now()); game.begins = (game.begins || 0) + 1; game.phase = 'countdown'; calls.reset(); radio.stop(); boostsAtStart = game.startBoosts || 0; place(); countStep = step; countT = 0; countShown = 0; startUntil = 0; game.phase = 'countdown'; hud.phase('countdown'); hud.clearNote(); hud.clearResult?.(); }
-  // 차를 바꾸면 모양(내 차 · 유령 · 상대)이 바뀌고, 주행 감각이 달라졌으면 주행 값 · 기록 저장소도 바뀐다
+  // 같은 기본 감각에 속해도 차마다 주행값이 다르므로 고를 때마다 계산과 저장소를 함께 바꾼다.
   function setCar(id) {
     if (!CARS.some(c => c.id === id) || id === carId) return false;
-    const before = kartId; carId = game.car = id; kartId = game.kart = carOf(id).kart; audio?.setCar(id); try { localStorage.setItem(CAR_KEY, id); } catch {}
-    sim.setBody(bodyNow()); dress(); if (kartId !== before) remake(); else { if (storeName() !== storeNow) useStore(); useRace(); place(); } return true;   // 감각이 같아도 차가 바뀌면 유령 · BEST 를 그 차의 것으로 · 내 차의 크기가 출발 자리 간격에 든다 — 경주를 새로 짓는다
+    carId = game.car = id; kartId = game.kart = carOf(id).kart; audio?.setCar(id); try { localStorage.setItem(CAR_KEY, id); } catch {}
+    dress(); remake(); return true;
   }
   // 모드를 바꾸면 상대 카트 · 기록 저장소 · 출발 자리가 바뀐다
   function setMode(id) {
@@ -559,8 +601,8 @@ async function boot(query, picked, hud, game) {
     if (!ranked) hud.result(result, handlers);
   }
 
-  // 경주의 내 최고 기록(등급마다). 순위와 상관없이 전체 시간으로. (옛 스피드전의 키는 ':' + mode 가 없었다 — 2026-11-25 뺀 뒤로는 안 읽는다)
-  const raceKey = () => 'campus-kart:race:' + course.id + ':v' + RULES + ':' + mode + ':' + klass + (kartId === DEFAULT_KART ? '' : ':' + kartId) + (PARTS_ON ? '' : ':flat') + (Object.keys(tuned).length ? ':tuned' : '');
+  // 그랑프리 내 최고는 순위와 상관없이 전체 시간으로 정한다. 등급·차·부품·조정판 구분은 타임어택과 같다.
+  const raceKey = () => 'campus-kart:race:' + course.id + ':v' + RULES + ':' + mode + ':' + storeName();
   const raceBest = () => { try { const v = JSON.parse(localStorage.getItem(raceKey()) || 'null'); return v && Number.isFinite(v.time) ? v.time : null; } catch { return null; } };
   // 결승: 그 순간의 순위표를 결과 화면에 넘긴다. 아직 달리는 상대는 '나보다 몇 초 뒤'를 어림한다(남은 거리 ÷ 그 카트의 지금까지 평균 빠르기).
   function finish(at, cut = false) {   // cut: 개발 · 검증용으로 도중에 끝낸 판 — 기록으로 치지 않는다
@@ -648,6 +690,9 @@ async function boot(query, picked, hud, game) {
   }
 
   function frame(now) {
+    capProbe.sample(now);   // 그리는 중의 간격은 '안 묶였다' 쪽으로만 쓰인다(충전기를 꽂으면 짧은 간격이 나와 안내가 사라진다)
+    slowWatch.sample(now, game.phase === 'ready' && !document.hidden);   // 시작 화면을 그리는 간격 — 느린 노트북(frame-cap.js)
+    if (game.phase === 'ready' && now >= powerAt) { powerAt = now + 1000; const text = powerNow(); if (text !== powerShown) { powerShown = text; hud.power(text); } }
     if (now >= nextRankWarm && game.phase === 'racing') warmRank(now);   // 오래 달리는 동안에도 1분마다 대기 기록과 위쪽 순위를 확인한다
     const shown = Math.min(0.1, (now - last) / 1000); last = now; game.frameMs = game.frameMs ? game.frameMs * 0.95 + shown * 50 : shown * 1000;
     const dt = paused ? 0 : shown;   // 멈춘 동안: 지난 시간 0 으로 그린다(초읽기 · 주행 · 바퀴 · 입자 · 카메라가 그 자리에 선다)
@@ -769,6 +814,27 @@ async function boot(query, picked, hud, game) {
   const endRace = () => { if (race && game.phase === 'racing') finish(time, true); };
   Object.assign(game, { radio, carState: car, level: levelId, setLevel, pause, resume, endRace, stage, campus, track, parts, world, roadAt, placeAt, sim, clock, course, begin, klass, setClass, tuned, input, audio, race, mode, setMode, rescue, watch, kart: kartId, car: carId, setCar, openGarage, finishTrial });
   // 개발용 조정판: 타면서 조정값을 바꾸고, 지금 들어오는 입력을 본다(?tune=1 일 때만 불러온다)
+  // ?stat=1 — 그리기 상태 다섯 줄(개발 · 문의용, 2026-11-26 "맥북에서 살짝 렉 … 화질도 살짝 다운"): 초당 장수 · 화면 간격 · 지금 배율(조절기가 내렸는지) · 그리는 점 수 · 그래픽 장치 · 30장 묶임과 시작 화면 느림 · 충전(frame-cap.js) · 브라우저 · 안내가 보이는지.
+  //   그 기계에서만 보이는 값이라(헤드리스로는 못 잰다) 사용자가 화면을 보고 알려 준다. 게임에는 아무것도 안 바꾼다.
+  if (query.has('stat')) {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:99;padding:5px 9px;background:rgba(0,0,0,.66);color:#fff;font:600 12px/1.45 ui-monospace,Menlo,monospace;white-space:pre;pointer-events:none;border-radius:4px;text-align:center';
+    document.body.appendChild(box);
+    let gpu = '?'; try { const gl = stage.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)).replace(/^ANGLE \(|\)$/g, '').slice(0, 64); } catch {}
+    const ua = navigator.userAgent, named = ['Edg', 'OPR', 'SamsungBrowser', 'CriOS', 'FxiOS', 'Firefox', 'Chrome'].map(k => ua.match(new RegExp(k + '/(\\d+)')) && k + ' ' + ua.match(new RegExp(k + '/(\\d+)'))[1]).find(Boolean);
+    const browser = named || (/Safari/.test(ua) && ua.match(/Version\/(\d+)/) ? 'Safari ' + ua.match(/Version\/(\d+)/)[1] : '?'), os = /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /Mac/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : '?';
+    let last = 0, sum = 0, n = 0, worst = 0, shown = 0;
+    const tick = t => {
+      if (last) { const d = t - last; if (d < 1000) { sum += d; n++; worst = Math.max(worst, d); } } last = t;
+      if (t - shown > 600 && n) {
+        const i = stage.info(), c = stage.renderer.domElement, state = (i.kept ? ' · 내린 채로' : '') + (i.raised ? ' · 되올림' : '') + (i.restored ? ' · 되돌림' : '') + (i.lifted ? ' · 올림' : '');
+        box.textContent = `${Math.round(1000 * n / sum)} fps · 평균 ${(sum / n).toFixed(1)} ms · 가장 긴 ${worst.toFixed(0)} ms\n배율 ${i.pixelRatio}(처음 ${i.ceiling} · 내림 ${i.drops}번${state}) · ${c.width}×${c.height} · 화질 ${i.quality}\n호출 ${i.calls} · 삼각형 ${(i.triangles / 1e6).toFixed(2)}M · ${gpu}\n가장 짧은 간격 ${Number.isFinite(capProbe.min) ? capProbe.min.toFixed(1) + ' ms' : '?'} → ${capProbe.capped ? '30장으로 묶임' : capProbe.open ? '안 묶임' : '모름'} · 시작 화면 ${slowWatch.slow ? '느림' : '보통'}(${slowWatch.average ? slowWatch.average.toFixed(1) + ' ms' : '?'}) · 충전 ${charging === true ? '중' : charging === false ? '아님' : '모름'}\n${browser} · ${os} · 안내 ${powerNow() ? '보임' : '없음'}`;
+        sum = 0; n = 0; worst = 0; shown = t;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
   if (query.has('tune')) Promise.all([import('./dev/tune.js'), import('./dev/tune-items.js')]).then(([{ createTunePanel }, { tuneGroups, cameraAccess }]) => {
     const CAMERA_ORIG = JSON.parse(JSON.stringify(cameraTuning)), cam = cameraAccess(cameraTuning), camDefault = key => cameraAccess(CAMERA_ORIG).get(key);
     // 값은 등급을 곱하기 전 기준값으로 다룬다. ratioOf 가 있으면 그 값에 대한 배율로 보여 주고 받는다.
@@ -781,6 +847,7 @@ async function boot(query, picked, hud, game) {
         // 처음 값으로 돌아오면 고친 값 목록에서 뺀다
         if (Math.abs(value - kartGet(item, baseParams())) < 1e-9) delete tuned[item.key]; else tuned[item.key] = item.ratioOf ? value * baseParams(tuned)[item.ratioOf] : value;
         Object.assign(sim.params, paramsNow());   // paramsNow() 는 모든 값을 담고 있어서, 목록에서 뺀 값도 기준값으로 돌아간다
+        topKey = '';   // 카메라가 따르는 최고속(topSpeedNow)도 다시 읽는다 — 조정판에서 최고속을 고쳤을 수 있다
         if (driver) driver = createAutoDriver({ samples: course.centre, params: paramsNow() });   // 자동 운전의 속도 계획도 같은 값으로
         if (storeName() !== storeNow) useStore();
       },
@@ -801,12 +868,12 @@ async function boot(query, picked, hud, game) {
         carName: id => carOf(id)?.name || id, klassName: '', version: rankVersionOf, mode: () => mode });   // 등급이 하나라 판 머리에 등급 이름을 안 쓴다 · 표는 모드마다(그랑프리는 'B/gp')
       const testDrive = !!discrete && LOCAL_API.test(RANK_API);
       game.onTrialRun = (info, handlers) => {
-        if (!rank.eligible({ mode, klass, partsOn: PARTS_ON, tuned, auto: AUTO && !testDrive, bodyOff: BODY_OFF })) return false;
+        if (!rank.eligible({ mode, klass, partsOn: PARTS_ON, tuned: isTuned(), auto: AUTO && !testDrive, bodyOff: BODY_OFF })) return false;
         return rankTrialRun(rank, game, hud, info, handlers);
       };
       // 경주(그랑프리): 상대 난이도 '어려움'(RACE_LEVEL)에서 달린 판만 — 그 밖의 조건은 타임어택과 같다
       game.onRaceRun = (info, handlers) => {
-        if (!rank.eligible({ mode, level: levelId, klass, partsOn: PARTS_ON, tuned, auto: AUTO && !testDrive, bodyOff: BODY_OFF })) return false;
+        if (!rank.eligible({ mode, level: levelId, klass, partsOn: PARTS_ON, tuned: isTuned(), auto: AUTO && !testDrive, bodyOff: BODY_OFF })) return false;
         return rankRaceRun(rank, game, hud, info, handlers);
       };
     } catch (error) { console.warn('랭킹을 못 붙임', error); rank = null; }
@@ -823,10 +890,27 @@ async function boot(query, picked, hud, game) {
     },
     info: () => ({ mode, modeName: modeNow().name, course: { id: course.id, name: picked.name }, car: carOf(carId).name, laps: [...game.laps], nick: rank?.profile?.()?.name || null }),
   });
+  // 첫 화면의 차 모형을 기다린다(약속 3.41 — 위 firstModels. 보통은 캠퍼스보다 먼저 와 있다). 12초가 지나도 안 오면 임시 모양으로 연다(오는 대로 갈아입힌다 — onFirst).
+  await Promise.race([firstModels, new Promise(done => setTimeout(done, 12000))]);
+  if (!game.vehicles) dress();
+  // 첫 화면을 그리기 전에: 아직 짧은 간격을 못 봤으면(묶인 것처럼 보이면) 아무것도 안 그리고 몇 장을 보내 확인한다 — 한가한 장의 간격만 '묶였다'의 증거다(frame-cap.js).
+  //   묶이지 않은 기기는 불러오는 동안 이미 짧은 간격이 나와 기다리지 않는다(여기까지 와도 짧은 간격이 나오는 대로 끝낸다). 묶인 기기는 다섯 장이 모이면 끝낸다(0.2초쯤 · 다른 일에 밀리면 많아야 열두 간격 0.4초).
+  //   탭이 숨어 있으면 건너뛴다(모르면 안 보인다). **끝나면 setTimeout 으로 넘긴다** — rAF 콜백 안에서 바로 이어 달리면 시작 화면이 첫 그리기보다 한 장 먼저 뜬다(그 한 장은 캔버스가 비고 최고 기록 글자도 비어 있다).
+  capWatch = false;
+  if (!capProbe.open && !document.hidden) await new Promise(done => {
+    let left = 13, over = false; const finish = () => { if (over) return; over = true; setTimeout(done, 0); }; capProbe.mark();
+    const tick = t => { capProbe.sample(t, true, !document.hidden); capPaint(); if (--left <= 0 || capProbe.open || capProbe.capped || document.hidden) finish(); else requestAnimationFrame(tick); };
+    requestAnimationFrame(tick); setTimeout(finish, 900);
+  });
+  capDot.remove();
+  game.cap = { get capped() { return capProbe.capped; }, get open() { return capProbe.open; }, get min() { return capProbe.min; }, get hits() { return capProbe.hits; }, get slow() { return slowWatch.slow; }, get average() { return slowWatch.average; }, get charging() { return charging; }, get touch() { return TOUCH; } };   // 검증용
   place(); stage.resize(); requestAnimationFrame(frame);
   // 차 고르기 화면(시작 화면의 '차' 줄 · C 키): 장면은 garage.js, 글자 층은 hud.garage. 처음 열 때 차량을 다 불러온 뒤 짓는다. ← → 로 넘기고 Enter 로 고르면 그 차로 바뀌어 시작 화면에 돌아온다.
   let garage = null, opening = false;
-  const carInfo = car => ({ name: car.name, kind: kartOf(car.kart).name + '형', stats: [...STAT_NAMES.map((name, k) => [name, KART_STATS[car.kart][k]]), [BODY_NAME, bodyStat(car)]] });
+  const carInfo = car => {
+    const stats = carStats(car.id, klass, carOptions);
+    return { name: car.name, kind: kartOf(carKind(stats)).name + '형', stats: [...STAT_NAMES.map((name, k) => [name, stats[k]]), [BODY_NAME, bodyStat(car)]] };   // 성격 낱말은 막대에서(2026-11-26 — 그 전에는 기본 감각 그대로라 막대와 어긋났다)
+  };
   async function openGarage() {
     if (opening || game.phase !== 'ready') return; opening = true;
     try { await loadVehicles(THREE); } catch {} finally { opening = false; }
@@ -836,7 +920,7 @@ async function boot(query, picked, hud, game) {
     hud.garage(CARS.map(carInfo), garage.index, { onMove: i => garage.select(i), onPick: i => { hud.clearGarage(); setCar(CARS[i].id); showReady(); }, onBack: () => { hud.clearGarage(); showReady(); } });
   }
   // 시작 화면 A(2026-11-25): 이 조합으로 달리면 랭킹에 오르는가 — 경주는 상대 '어려움'일 때만(타임어택은 늘 오르니 표시하지 않는다). 키를 만들지 않는 셈(rank.eligible 은 키를 만든다)
-  const rankedCombo = (m, l) => !!rank?.enabled && m !== 'time' && RANK_MODES.includes(m) && l === RACE_LEVEL && klass === RANK_CLASS && PARTS_ON && !BODY_OFF && !Object.keys(tuned).length && !AUTO;
+  const rankedCombo = (m, l) => !!rank?.enabled && m !== 'time' && RANK_MODES.includes(m) && l === RACE_LEVEL && klass === RANK_CLASS && PARTS_ON && !BODY_OFF && !isTuned() && !AUTO;
   // 코스 고르기 화면(2026-11-25 사용자가 시안에서 고른 '가 하늘에서' — src/hud/course-pick.js, 처음 열 때 불러온다): 시작 화면의 '코스' 칸 · T 키.
   //   코스는 불러올 때 짓는다 — 다른 코스를 고르면 그 주소(?course=)로 다시 연다(모드 · 차 · 상대 · 설정은 브라우저에 남긴 값으로 이어진다). 지금 코스를 고르거나 뒤로면 시작 화면으로.
   let coursePick = null, courseOpening = false;
@@ -846,7 +930,7 @@ async function boot(query, picked, hud, game) {
       const { createCoursePick, trialBestOf, boardTopOf } = await import('./hud/course-pick.js');
       coursePick ||= game.coursePick = createCoursePick(THREE, { root: document.getElementById('hud'), stage, campus, courses: COURSES, current: { id: course.id, parts }, trialLaps: TRIAL_LAPS, game, night: isNight,
         world: () => ({ objects: [track.group, branch?.group, game.signs?.group, game.guideLights?.group, partModels?.group, flyProps?.group, pitModels?.group, pitCrew?.group, game.nightLamps?.group, kart.group, kartShadow.mesh, ...rivalKarts.flatMap(r => [r.model.group, r.shadow.mesh])], lampMap: game.nightLamps?.map?.texture }),
-        best: id => { const saved = trialBestOf(id, { klass, version: GHOST_VER }); return id === course.id && mode === 'time' && PARTS_ON && !Object.keys(tuned).length && Number.isFinite(game.best) ? Math.min(saved ?? Infinity, game.best) : saved; },
+        best: id => { const saved = trialBestOf(id, { klass, version: GHOST_VER }); return id === course.id && mode === 'time' && PARTS_ON && !isTuned() && Number.isFinite(game.best) ? Math.min(saved ?? Infinity, game.best) : saved; },
         top: id => boardTopOf(rank?.enabled ? RANK_API : '', id) });
       await coursePick.prepare();
     } catch (error) { console.error('코스 고르기 화면을 못 엶', error); return; } finally { courseOpening = false; }
@@ -860,7 +944,8 @@ async function boot(query, picked, hud, game) {
   // 시작 화면: 모드 · 차 · 속도 등급 · 출발. 멈춤 판 · 결과 화면의 '메인 화면'에서도 다시 온다.
   function showReady() {
     rank?.clear(); game.phase = 'ready'; place(); hud.clearResult?.(); hud.clearNote();
-    hud.ready(event => { audio?.unlock(); radio.preload(); if (TOUCH && event?.type !== 'keydown') input.setTouchMode(true); begin(0.9); }, { modes: MODES, mode, onMode: setMode, levels: LEVELS.map(l => ({ id: l.id, name: l.name })), level: levelId, onLevel: setLevel, ranked: rankedCombo, settings: settingsList(), onSetting: setSetting, car: { name: carOf(carId).name, kind: kartOf(kartId).name + '형' }, onCar: openGarage, courses: COURSES.map(c => ({ id: c.id, name: c.label || c.name })), course: course.id, onCourses: openCourses,
+    hud.ready(event => { seeTip(); audio?.unlock(); radio.preload(); if (TOUCH && event?.type !== 'keydown') input.setTouchMode(true); begin(0.9); }, { modes: MODES, mode, onMode: setMode, levels: LEVELS.map(l => ({ id: l.id, name: l.name })), level: levelId, onLevel: setLevel, ranked: rankedCombo, settings: settingsList(), onSetting: setSetting, car: { name: carOf(carId).name, kind: kartOf(kartId).name + '형' }, onCar: openGarage, courses: COURSES.map(c => ({ id: c.id, name: c.label || c.name })), course: course.id, onCourses: openCourses, power: (powerShown = powerNow()),
+      tip: tipOn ? [['그랑프리', gpDamage ? '상대 7대와 경주해요. 벽에 부딪히면 차가 상해 느려지고, 출발선 옆 피트에 들르면 고쳐져요.' : '상대 7대와 경주해요.'], ['타임어택', '혼자 달려 기록을 겨뤄요.'], ['부스트', '드리프트로 게이지를 채우면 쓸 수 있어요.']] : null, onTip: seeTip,
       info: () => ({ laps: race ? race.laps : null, best: race ? raceBest() : game.best }) });   // 터치 기기에서 단추로 출발했으면 조향 패드를 건드리기 전에도 자동 가속
     rank?.ready();   // 시작 화면의 '랭킹' 단추 · 설정의 '이름' 줄 — hud.ready 가 화면을 다시 그리므로 그 뒤마다
   }

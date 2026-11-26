@@ -185,6 +185,10 @@ body.touch .hud-pc { display: block; }
 .hud-modes button { flex: 1; display: grid; place-items: center; min-height: 60px; padding: 0 6px; border: 0; border-left: 1px solid rgba(255, 255, 255, .1); background: none; color: var(--ink); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .hud-modes button:first-child { border-left: 0; }
 .hud-modes b { font: 800 16px/1 var(--text); white-space: nowrap; }
+/* 모드 설명 한 줄(2026-11-26 시안 '가') — 이름 밑의 작은 글. 없으면(hint 를 안 준 쓰임) 그 전 모양 그대로다 */
+.hud-modes button { align-content: center; row-gap: 6px; }
+.hud-modes small { font: 600 11.5px/1 var(--text); opacity: .6; white-space: nowrap; }
+.hud-modes button[aria-pressed=true] small { opacity: .68; }
 .hud-modes button[aria-pressed=true] { background: #fff; color: #10141f; box-shadow: inset 0 -4px 0 var(--accent); }
 .hud-picks { display: flex; gap: 2px; }
 .hud-cell { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 9px; width: 156px; min-height: 60px; padding: 0 34px; border: 0; background: rgba(11, 12, 17, .8); box-shadow: inset 0 2px 0 #003876; color: var(--ink); text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -220,6 +224,40 @@ body.touch .hud-pc { display: block; }
 .hud-osm.top { display: none; }
 @media (max-height: 460px) { .hud-dock > .hud-osm { display: none; } .hud-osm.top { display: block; } }
 @media (max-width: 700px) { .hud-dock > .hud-osm { top: auto; bottom: calc(100% + 10px); height: auto; } }
+/* 저전력 안내(2026-11-26 사용자가 시안에서 고른 '시작 화면 · 가' — 화면이 초당 30장으로 묶인 기기에서만 나온다, 약속 3.39): 아래 묶음 바로 위 왼쪽에 한 줄. 꾸밈 없이 글자만.
+   넓은 화면: 모드 단추 위 · 세로 화면: 저작권 줄 위(그 줄이 아래 묶음 바로 위에 있다) · 낮은 가로 화면: 아래 묶음 바로 위(저작권 줄은 오른쪽 위로 갔다 — 그래서 이 줄이 뒤에 와야 한다). */
+.hud-power { margin: 0; font: 600 12.5px/1.3 var(--text); color: var(--ink); opacity: .9; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, .85); }
+.hud-dock > .hud-power { position: absolute; left: 0; bottom: calc(100% + 13px); }
+@media (max-width: 700px) { .hud-dock > .hud-power { bottom: calc(100% + 33px); } }
+@media (max-height: 460px) { .hud-dock > .hud-power { bottom: calc(100% + 8px); font-size: 12px; } }
+/* 좁고 낮은 화면(옛 아이폰 가로 667×375): 아래 묶음이 세 줄로 쌓여 제목 바로 밑까지 올라온다 → 왼쪽에 두면 제목의 띠 · 무대 줄과 겹친다. 오른쪽 끝으로 보낸다(그 위는 비어 있다). */
+@media (max-width: 700px) and (max-height: 460px) { .hud-dock > .hud-power { left: auto; right: 0; } }
+/* 처음 온 사람에게만 뜨는 말풍선(2026-11-26 사용자 "약간 그 말풍선 처럼 떠가지고 없앨수 있게 … 처음 들어오는 사람한테만" — 시안 '나: 모드 · 피트 + 부스트 한 줄', 약속 3.40):
+   모드 단추를 가리키는 어두운 판(꼬리는 그랑프리 단추 위), 오른쪽 위 ✕ 로 닫는다. 넓은 화면 · 낮은 가로 화면은 아래 묶음 위에 띄운다(그동안 같은 자리의 저전력 안내는 감춘다).
+   세로 화면은 아래 묶음의 맨 위 칸으로 넣는다 — 저작권 줄 · 저전력 안내는 아래 묶음의 위 끝에 매여 있어 저절로 그 위로 올라간다.
+   넓은 화면의 bottom 은 아래 묶음의 바닥에서 잰다(모드 단추 높이 60 + 13 — 아래 묶음의 위 끝은 더 큰 출발 단추의 것이라 거기서 재면 꼬리가 모드 단추에서 뜬다). 낮은 가로 화면은 50 + 12. */
+.hud-tip { position: absolute; left: 0; bottom: 73px; width: 432px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 14px 46px 14px 17px; background: rgba(13, 15, 22, .95); box-shadow: 0 0 0 1px rgba(255, 255, 255, .16), 0 10px 28px rgba(0, 0, 0, .45); color: var(--ink); font: 500 13px/1.5 var(--text); word-break: keep-all; text-align: left; }
+.hud-tip::after { content: ''; position: absolute; left: 36px; top: 100%; border: 9px solid transparent; border-top-color: rgba(13, 15, 22, .95); border-bottom: 0; }
+.hud-tip p { margin: 0; display: grid; grid-template-columns: 58px 1fr; column-gap: 12px; }
+.hud-tip p + p { margin-top: 8px; }
+.hud-tip b { font-weight: 800; white-space: nowrap; }
+.hud-tip span { opacity: .84; }
+.hud-tip-x { position: absolute; top: 5px; right: 5px; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: none; color: var(--ink); opacity: .62; font: 300 20px/1 var(--text); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hud-tip-x:hover { opacity: 1; }
+#hud .hud-tip-x:focus-visible { outline: 2px solid var(--cool); outline-offset: -4px; opacity: 1; }
+.hud-dock.has-tip > .hud-power { display: none; }
+@media (max-width: 700px) {
+  .hud-tip { position: relative; left: auto; bottom: auto; width: auto; max-width: none; margin-bottom: 5px; padding: 13px 44px 13px 15px; }
+  .hud-tip p { grid-template-columns: 56px 1fr; column-gap: 10px; }
+  .hud-tip-x { top: 2px; right: 2px; width: 44px; height: 44px; }
+  .hud-dock.has-tip > .hud-power { display: block; }
+}
+@media (max-height: 460px) and (min-width: 701px) { .hud-tip { width: 400px; bottom: 62px; font-size: 12.5px; padding: 11px 44px 11px 15px; } }
+/* 좁고 낮은 화면(옛 아이폰 가로 667×375 — 아래 묶음이 세 줄로 쌓여 제목 밑까지 올라온다): 칸으로 넣으면 오른쪽 위의 저작권 줄까지 덮는다 → 아래 묶음 위 왼쪽에 띄운다(제목은 닫을 때까지 가린다 · 저전력 안내는 오른쪽 끝이라 같이 보인다). */
+@media (max-width: 700px) and (max-height: 460px) { .hud-tip { position: absolute; left: 0; bottom: calc(100% + 13px); width: min(400px, 100%); margin-bottom: 0; font-size: 12.5px; padding: 11px 46px 11px 15px; } }
+/* 닫기 단추: 손가락으로 누르는 기기에서는 44 px */
+body.touch .hud-tip-x { top: 2px; right: 2px; width: 44px; height: 44px; }
+@media (hover: none) and (pointer: coarse) { .hud-tip-x { top: 2px; right: 2px; width: 44px; height: 44px; } }
 /* 만든 사람(2026-11-25 사용자가 시안에서 고른 '시작 화면 A'): 같은 줄 앞에 '© 2026 HealthCoding ·'. 'HealthCoding' 은 링크처럼 보이는 단추(제작 정보 판을 연다) — 손가락이 닿는 높이는 위아래로 넓힌다 */
 .hud-osm .hud-credit-open { margin: -8px 0; padding: 8px 0; border: 0; background: none; color: inherit; font: inherit; text-shadow: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: rgba(255, 255, 255, .42); text-underline-offset: 2px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .hud-osm .hud-osm-sep { margin: 0 7px; opacity: .7; }
@@ -331,8 +369,9 @@ body.touch .hud-pc { display: block; }
   .hud-opt button { min-height: 36px; font-size: 13px; }
   .hud-dock { left: max(20px, env(safe-area-inset-left)); right: max(20px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); gap: 8px; }
   .hud-modes { width: 222px; }
-  .hud-modes button { min-height: 50px; }
+  .hud-modes button { min-height: 50px; row-gap: 5px; }
   .hud-modes b { font-size: 14px; }
+  .hud-modes small { font-size: 10.5px; }
   .hud-cell { width: 122px; min-height: 50px; gap: 7px; padding: 0 26px; }
   .hud-cell small { font-size: 10px; gap: 5px; }
   .hud-cell b { font-size: 13px; }

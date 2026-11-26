@@ -20,12 +20,12 @@ export function applyKart(params, id) {
   return out;
 }
 
-// 차 — 차 고르기 화면에서 고르는 것(2026-11-21). 차마다 모양이 다르고, 주행 감각은 위의 네 종류(KARTS) 가운데 하나를 쓴다.
-//   kart: 주행 감각(KARTS 의 id — 기록 · 유령도 이 종류로 나뉜다. 감각이 같은 차끼리는 기록을 같이 쓴다)
+// 차 — 고르는 순서, 기준 감각, 몸 크기와 무게. classes.js 의 carParams 가 기준 감각에 차별 배율을 곱한다.
+//   kart: 배율을 곱하기 전의 감각(KARTS 의 id). 타임어택의 개인 기록 · 유령은 차 id별로 저장한다.
 //   vehicle: 모양이 차량 모델(assets/vehicles/<id>.glb)이면 그 id. 없으면 그 종류의 카트 모양(model.js).
 //   weight: 무게(몸싸움) — 카트끼리 부딪혔을 때 덜 밀리는 정도(1 = 기본 카트. race.js 의 bump). 주행 값 · 기록과는 무관하다(차마다 따로다 — 사용자 2026-11-21 "차별로 몸싸움 스펙도 구분").
 //     값은 메인이 차의 생김새로 정했다(사용자 확인 전): 장보기 카트가 가장 가볍고 청소차가 가장 무겁다.
-// 순서가 차 고르기 화면의 순서다. 차마다의 감각 · 무게는 메인이 생김새로 붙였다(사용자 확인 전 — 바꾸려면 kart · weight 만 고치면 된다).
+// 기존 차의 기준 감각·몸 크기·차별 배율이 바뀌면 TRIAL_VER와 검증/car-bodies.test.mjs의 표도 갱신한다.
 // 2026-11-23 사용자: 실사 차로 바꾸고, "기본 가속 고속 드리프트는 기본 말고는 없애도" · "장난감차는 일단 게임에서는 없애고 모양 자체는 남겨놓자"
 //   → 카트는 실사 레이싱 카트 하나(기본 감각). 장난감 차량 일곱(formula · supercar · shoppingcart · golfcart · forklift · truck · garbagetruck)과
 //     코드로 지은 카트 넷(model.js)은 목록에서 뺐다(장난감 일곱의 glb · 스크립트는 2026-11-25 정리에서 지웠다 — model.js 는 남았다). 주행 감각 넷(KARTS)은 차들이 계속 나눠 쓴다.
@@ -61,8 +61,7 @@ export const CARS = [
 ];
 export const DEFAULT_CAR = 'gt';   // 2026-11-23 사용자가 로비 시안에서 '첫 화면 차 GT'를 고름(처음 온 사람의 차). 그 전에는 racekart
 export const carOf = id => CARS.find(c => c.id === id) || CARS.find(c => c.id === DEFAULT_CAR);
-// 능력치(차 고르기 화면의 다섯 칸 막대): [가속, 최고 속도, 핸들, 드리프트]. 위 tune 의 배율을 어림한 값이다 — tune 을 바꾸면 같이 본다.
-export const KART_STATS = { balance: [3, 3, 3, 3], sprint: [5, 2, 4, 3], cruise: [2, 5, 2, 3], drift: [3, 3, 3, 5] };
+// 차 고르기 화면의 항목. 칸 수는 classes.js 의 carStats 가 현재 등급·세기에서 계산한다.
 export const STAT_NAMES = ['가속', '최고 속도', '핸들', '드리프트'];
 // 몸싸움 능력치(막대 다섯 칸): 무게를 칸 수로 — 0.75 아래 1 · 0.9 까지 2 · 1.05 까지 3 · 1.25 까지 4 · 그 위 5
 export const BODY_NAME = '몸싸움';

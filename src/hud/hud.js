@@ -342,9 +342,11 @@ export function createHud(root, { course }) {
     // levels: [{ id, name }] 상대의 난이도, level: 지금 고른 id, onLevel(id). 상대가 있는 모드(modes 의 rivals: true)에서만 칸이 보인다.
     // courses: [{ id, name }] 고를 수 있는 코스, course: 지금 코스 id, onCourses(byKey): 코스 고르기 화면을 연다(2026-11-25 사용자가 시안에서 고른 '새 입구' — '코스' 칸은 '차' 칸과 같은 모양(이름 + ›), 누르거나 T 키.
     //   고르는 칸 줄의 맨 앞, 코스가 둘 이상일 때만. byKey = 키보드로 칸을 눌렀다(닫을 때 그 칸으로 초점을 돌린다). 화면은 src/hud/course-pick.js).
+    // power: 저전력 안내 한 줄의 글(빈 글이면 없다 — 약속 3.39). 아래 묶음 바로 위 왼쪽.
+    // tip: [[이름, 설명], …] 처음 온 사람에게만 보이는 말풍선(없거나 비면 없다 — 약속 3.40). 모드 단추 위에 뜨고 ✕ · Esc 로 닫는다 → onTip()(닫혔다 — 부르는 쪽이 '봤다'로 적는다).
     // info: 예전 코스 카드(길이 · 바퀴 · 최고 기록)용 — 포스터형에는 카드가 없어 쓰지 않는다(받기만 한다).
     // ranked(modeId, levelId) → 그 조합으로 달리면 랭킹에 오르는가(2026-11-25 사용자가 고른 시안 A): 참이면 '상대' 칸 위 선이 노랗고 칸 구석에 노란 '랭킹'. 모드 · 상대를 바꿀 때마다 다시 본다(글은 없다).
-    ready(onStart, { courses = [], course = '', onCourses = () => {}, classes = [], chosen = '', onClass = () => {}, modes = [], mode = '', onMode = () => {}, settings = [], onSetting = () => {}, karts = [], kart = '', onKart = () => {}, car = null, onCar = () => {}, levels = [], level = '', onLevel = () => {}, ranked = null } = {}) {
+    ready(onStart, { courses = [], course = '', onCourses = () => {}, classes = [], chosen = '', onClass = () => {}, modes = [], mode = '', onMode = () => {}, settings = [], onSetting = () => {}, karts = [], kart = '', onKart = () => {}, car = null, onCar = () => {}, levels = [], level = '', onLevel = () => {}, ranked = null, power = '', tip = null, onTip = () => {} } = {}) {
       if (readyOff) readyOff();
       const sets = Array.isArray(settings) ? settings.filter(s => s && Array.isArray(s.options) && s.options.length) : [];
       api.clearResult();
@@ -364,15 +366,20 @@ export function createHud(root, { course }) {
         + '<div class="hud-tr"><div class="hud-tr-row"><span class="hud-pc">PC 권장</span>' + (sets.length ? '<button type="button" class="hud-set" aria-expanded="false">설정</button>' : '') + '</div>' + '<p class="hud-osm top">' + CREDIT_OSM + '</p>'
         + (sets.length ? '<div class="hud-settings" hidden>' + sets.map(s => '<div class="hud-setting"><span>' + esc(s.name) + '</span><div class="hud-opt" role="group" aria-label="' + esc(s.name) + '" data-id="' + esc(s.id) + '">'
           + s.options.map(o => '<button type="button" data-value="' + esc(o.id) + '" aria-pressed="' + (o.id === s.value) + '">' + esc(o.name) + '</button>').join('') + '</div></div>').join('') + '</div>' : '') + '</div>'
-        + '<div class="hud-dock">'
-        + (modes.length ? '<div class="hud-modes" role="group" aria-label="모드">' + modes.map(m => '<button type="button" data-id="' + esc(m.id) + '" aria-pressed="' + (m.id === mode) + '"' + (m.note ? ' title="' + esc(m.note) + '"' : '') + '><b>' + esc(m.name) + '</b></button>').join('') + '</div>' : '')
+        + '<div class="hud-dock' + (tip && tip.length ? ' has-tip' : '') + '">'
+        + (tip && tip.length ? '<div class="hud-tip" role="note">' + tip.map(([name, text]) => '<p><b>' + esc(name) + '</b><span>' + esc(text) + '</span></p>').join('') + '<button type="button" class="hud-tip-x" aria-label="설명 닫기">✕</button></div>' : '')
+        + (modes.length ? '<div class="hud-modes" role="group" aria-label="모드">' + modes.map(m => '<button type="button" data-id="' + esc(m.id) + '" aria-pressed="' + (m.id === mode) + '"' + (m.note ? ' title="' + esc(m.note) + '"' : '') + '><b>' + esc(m.name) + '</b>' + (m.hint ? '<small>' + esc(m.hint) + '</small>' : '') + '</button>').join('') + '</div>' : '')
         + '<div class="hud-picks">'
         + (courses.length > 1 ? cell('hud-course', '코스<kbd>T</kbd>', courses.find(c => c.id === course)?.name ?? '', ' aria-label="코스 고르기"') : '')
         + (car ? cell('hud-car', '차<kbd>C</kbd>', car.name ?? '', ' aria-label="차 고르기"') : useKarts ? stepper('hud-karts', '카트', karts, kart) : '')
         + (classes.length ? stepper('hud-class', '속도', classes, chosen) : '')
         + (levels.length ? stepper('hud-level', '상대', levels, level, rivalsNow(mode) ? '' : ' hidden') : '')
-        + '</div><button type="button" class="hud-go"><b>출발</b><kbd>ENTER</kbd></button><p class="hud-osm">' + CREDIT_OSM + '</p></div>'
+        + '</div><button type="button" class="hud-go"><b>출발</b><kbd>ENTER</kbd></button><p class="hud-osm">' + CREDIT_OSM + '</p>' + (power ? '<p class="hud-power">' + esc(power) + '</p>' : '') + '</div>'
         + '<div class="hud-keys"><span><kbd>↑</kbd>가속</span><span><kbd>← →</kbd>방향</span><span><kbd>Shift</kbd>드리프트</span><span><kbd>Space</kbd>부스트</span><span><kbd>X</kbd>경적</span><span><kbd>R</kbd>다시</span><span><kbd>Esc</kbd>멈춤</span></div>';
+      // 말풍선(약속 3.40): ✕ 를 누르거나(초점이 있을 때의 Space · Enter 도 — 출발이 아니다) Esc 면 닫는다. 닫히면 저전력 안내가 제자리에 보인다(hud.css 의 .has-tip).
+      const tipBox = cover.querySelector('.hud-tip');
+      const closeTip = () => { if (!tipBox || !tipBox.isConnected) return false; tipBox.remove(); cover.querySelector('.hud-dock')?.classList.remove('has-tip'); onTip(); return true; };
+      if (tipBox) { const x = tipBox.querySelector('.hud-tip-x'); x.addEventListener('click', () => { closeTip(); }); x.addEventListener('keydown', event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); if (!event.repeat) closeTip(); } }); }
       // 고르는 칸 · 모드 · 설정 단추에 초점이 있을 때 Space · Enter 는 그 단추를 누르는 것이다(전역 '출발' 처리로 넘어가지 않게).
       cover.querySelectorAll('.hud-cell, .hud-modes button, .hud-set, .hud-opt button').forEach(button => button.addEventListener('keydown', event => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); button.click(); } }));
       // 지도 출처의 링크에 초점이 있을 때 Enter 는 그 링크를 여는 것이다(전역 '출발' 처리로 넘어가지 않게 — 기본 동작은 막지 않는다).
@@ -440,8 +447,8 @@ export function createHud(root, { course }) {
           if (modified(event) || textField(event.target) || textField(document.activeElement)) return;
           /* 누르고 있는 키의 반복은 출발이 아니다 — 판 · 단추에서 누른 Enter 를 떼지 않은 채 닫혀도 출발하지 않게 */
           if (event.repeat) return;
-          // Esc: 펼친 설정을 접는다(시작 화면에서는 그것뿐)
-          if (event.code === 'Escape' || event.key === 'Escape') { if (panel && !panel.hidden) openSettings(false); return; }
+          // Esc: 펼친 설정을 접는다 · 아니면 말풍선을 닫는다(시작 화면에서는 그것뿐)
+          if (event.code === 'Escape' || event.key === 'Escape') { if (panel && !panel.hidden) openSettings(false); else closeTip(); return; }
           if (carButton && (event.code === 'KeyC' || (!event.code && (event.key === 'c' || event.key === 'C')))) { event.preventDefault(); onCar(); return; }
           if (courseButton && (event.code === 'KeyT' || (!event.code && (event.key === 't' || event.key === 'T')))) { event.preventDefault(); onCourses(false); return; }
           // ← → : 모드 옮기기(고르는 칸에 초점이 있을 때는 빼고)
@@ -467,6 +474,8 @@ export function createHud(root, { course }) {
     // 알림: 큰 글 + 작은 글. tone: 'best' | 'slow' | 'warn' | ''
     note(text, small = '', tone = '', seconds = 2.6) { note.dataset.tone = tone; note.innerHTML = ''; note.append(text); if (small) { const s = document.createElement('small'); s.textContent = small; note.append(s); } note.classList.add('on'); clearTimeout(noteTimer); if (seconds > 0) noteTimer = setTimeout(() => note.classList.remove('on'), seconds * 1000); },
     clearNote() { clearTimeout(noteTimer); note.classList.remove('on'); },
+    // 저전력 안내 한 줄(약속 3.39 — 시작 화면의 아래 묶음 바로 위 왼쪽, 화면이 30장으로 묶인 기기에서만): ready 의 power 로 그리고, 떠 있는 동안 바뀌면 이것으로 고친다. 빈 글이면 지운다.
+    power(text) { const dock = cover.querySelector('.hud-dock'); if (!dock) return; let line = dock.querySelector('.hud-power'); if (!text) { line?.remove(); return; } if (!line) { line = document.createElement('p'); line.className = 'hud-power'; dock.append(line); } line.textContent = text; },
     // 역주행 경고: 풀릴 때까지 계속 보인다
     wrong(on) { if (on === wrongOn) return; wrongOn = on; wrong.classList.toggle('on', on); },
     onAgain(fn) { again.addEventListener('click', () => { again.blur(); fn(); }); },
